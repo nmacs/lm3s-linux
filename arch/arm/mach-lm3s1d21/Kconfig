@@ -1,0 +1,10 @@
+if ARCH_LM3S1D21
+
+config MACH_LM3S1D21
+	bool
+	default y
+	select ARM_NVIC if CPU_V7M
+	help
+	  Include support for the Texas Instruments LM3S1D21 platform.
+
+endif

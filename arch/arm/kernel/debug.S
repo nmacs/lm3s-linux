@@ -163,6 +163,8 @@ ENDPROC(printhex2)
 
 		.ltorg
 
+#ifndef CONFIG_ARCH_LM3S1D21
+
 ENTRY(printascii)
 		addruart r3
 		b	2f
@@ -185,5 +187,7 @@ ENTRY(printch)
 		mov	r0, #0
 		b	1b
 ENDPROC(printch)
+
+#endif
 
 hexbuf:		.space 16

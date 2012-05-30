@@ -126,6 +126,11 @@ ENTRY(vector_table)
 	.long	__invalid_entry		@ 13 - Reserved
 	.long	__pendsv_entry		@ 14 - PendSV
 	.long	__invalid_entry		@ 15 - SysTick
-	.rept	64 - 16
-	.long	__irq_entry		@ 16..64 - External Interrupts
+#ifndef CONFIG_ARCH_LM3S1D21
+	.rept	64 - 16 @ 16..64 - External Interrupts
+#else
+  .rept 71 - 16 @ 16..70 - External Interrupts
+#endif
+	.long __irq_entry
 	.endr
+ENTRY(vector_table_end)

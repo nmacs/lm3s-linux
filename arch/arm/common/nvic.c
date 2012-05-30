@@ -74,13 +74,22 @@ void __init nvic_init(void)
 {
 	unsigned int max_irq, i;
 
+#ifndef CONFIG_ARCH_LM3S1D21
 	max_irq = ((readl(NVIC_INTR_CTRL) & 0x1f) + 1) * 32;
 
-	/*
-	 * Disable all interrupts
-	 */
-	for (i = 0; i < max_irq / 32; i++)
-		writel(~0, NVIC_CLEAR_ENABLE + i * 4);
+  /*
+   * Disable all interrupts
+   */
+  for (i = 0; i < max_irq / 32; i++)
+    writel(~0, NVIC_CLEAR_ENABLE + i * 4);
+#else
+  unsigned int regval;
+
+  max_irq = NR_IRQS;
+
+  writel(~0, NVIC_CLEAR_ENABLE);
+  writel(~0, NVIC_CLEAR_ENABLE + 4);
+#endif
 
 	/*
 	 * Set priority on all interrupts.

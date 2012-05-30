@@ -67,11 +67,9 @@ ENTRY(cpu_v7m_switch_mm)
 	mov	pc, lr
 ENDPROC(cpu_v7m_switch_mm)
 
-#if 0
 ENTRY(cpu_v7m_set_pte_ext)
 	mov	pc, lr
 ENDPROC(cpu_v7m_set_pte_ext)
-#endif
 
 cpu_v7m_name:
 	.ascii	"ARMv7-M Processor"
@@ -95,10 +93,29 @@ cpu_v7m_name:
  *	- cache type register is implemented
  */
 __v7m_setup:
+
 	@ Configure the vector table base address
+#ifndef CONFIG_ARCH_LM3S1D21
 	ldr	r0, =0xe000ed08		@ vector table base address
 	ldr	r12, =vector_table
 	str	r12, [r0]
+#else
+
+  @ Copy vector_table from SDRAM to SRAM (LM3S1D21 specific)
+  ldr r5,  =vector_table
+  ldr r6,  =vector_table_end
+  ldr r4,  =0x20000000 @ SRAM base address
+1:ldrne fp, [r5], #4
+  strne fp, [r4], #4
+  cmp r5, r6
+  bne 1b
+
+  @ Configure the vector table base address
+  ldr r0,  =0xe000ed08  @ vector table base address
+  ldr r12, =0x20000000  @ offset 0x00000000 from SRAM
+  str r12, [r0]
+#endif
+
 
 	@ Lower the priority of the SVC and PendSV exceptions
 	ldr	r0, =0xe000ed1c
@@ -129,8 +146,9 @@ __v7m_setup:
 	@ Configure the System Control Register
 	ldr	r0, =0xe000ed14		@ system control register
 	ldr	r12, [r0]
-	orr	r12, #1 << 9		@ STKALIGN
+	orr	r12, #1 << 9		@ STKALIGN 8-bytes aligned
 	str	r12, [r0]
+
 	mov	pc, lr
 ENDPROC(__v7m_setup)
 
