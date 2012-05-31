@@ -15,6 +15,6 @@ mkimage -A arm -O linux -T kernel -C gzip -a 0x60008000 -e 0x60008000 -n "Linux 
 
 echo == Image ready ==
 
-openocd -f "$ROOT/../u-boot-uwic/jtag/uwic.cfg" -c "load_sdram $image" || exit 1
+openocd -f "$ROOT/../toolchain/jtag/uwic.cfg" -c "load_sdram $image" || exit 1
 
 echo == Image loaded ==
