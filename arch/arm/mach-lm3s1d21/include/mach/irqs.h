@@ -28,6 +28,7 @@
 
 #define NR_IRQS			37
 
-#define LM3S1D21_TIMER_IRQ   0
+#define LM3S1D21_TIMER0_IRQ   19
+#define LM3S1D21_TIMER1_IRQ   21
 
 #endif

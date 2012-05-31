@@ -117,13 +117,14 @@
 
 #include "lm3s_memorymap.h"      /* Memory map */
 #include "lm3s_syscontrol.h"     /* System control module */
-#include "lm3s_epi.h"
+#include "lm3s_epi.h"            /* SDRAM */
 #include "lm3s_gpio.h"           /* GPIO modules */
 #include "lm3s_uart.h"           /* UART modules */
-//#include "lm3s_i2c.h"            /* I2C modules */
+//#include "lm3s_i2c.h"          /* I2C modules */
 #include "lm3s_ssi.h"            /* SSI modules */
-//#include "lm3s_ethernet.h"       /* Ethernet MAC and PHY */
-//#include "lm3s_flash.h"          /* FLASH */
+//#include "lm3s_ethernet.h"     /* Ethernet MAC and PHY */
+//#include "lm3s_flash.h"        /* FLASH */
+#include "lm3s_timer.h"          /* Timer */
 #include "lm3s_internal.h"
 
 /************************************************************************************

@@ -14,7 +14,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
-extern void __init lm3s1d21_timer_init(unsigned int timer_irq);
+extern void __init lm3s1d21_timer_init();
 
 void board_red_LED_on(void)
 {
@@ -76,9 +76,7 @@ static void __init init_irq(void)
 
 static void __init timer_init(void)
 {
-  lm3s1d21_timer_init(LM3S1D21_TIMER_IRQ);
-  printk("3\n");
-  //printk("%s\n", __func__);
+  lm3s1d21_timer_init();
 }
 
 static struct sys_timer timer = {
