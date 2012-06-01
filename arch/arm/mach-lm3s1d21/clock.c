@@ -8,6 +8,8 @@
 #include <mach/hardware.h>
 #include <mach/timex.h>
 
+/***************************************************************************/
+
 static void enable_timer(unsigned int num);
 static void disable_timer(unsigned int num);
 static int find_timer(struct clock_event_device* dev);
@@ -20,6 +22,8 @@ static void __init clocksource_init();
 static irqreturn_t timer_interrupt(int irq, void *dev_id);
 static cycle_t clock_get_cycles(struct clocksource *cs);
 
+/***************************************************************************/
+
 static struct clock_event_device sysclk_clockevent =   {
   .name   = "sysclk_int",
   .shift    = 32,
@@ -30,6 +34,8 @@ static struct clock_event_device sysclk_clockevent =   {
   .cpumask  = cpu_all_mask,
 };
 
+/***************************************************************************/
+
 static struct clocksource sysclk_clocksource = {
   .name = "sysclk_poll",
   .rating = 200,
@@ -39,6 +45,8 @@ static struct clocksource sysclk_clocksource = {
   .flags  = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+/***************************************************************************/
+
 static void enable_timer(unsigned int num)
 {
   uint32_t regval;
@@ -47,6 +55,8 @@ static void enable_timer(unsigned int num)
   lm3s_putreg32(regval, LM3S_TIMER_GPTMCTL(num));
 }
 
+/***************************************************************************/
+
 static void disable_timer(unsigned int num)
 {
   uint32_t regval;
@@ -54,6 +64,8 @@ static void disable_timer(unsigned int num)
   regval &= ~TIMER_GPTMCTL_TAEN_MASK;
   lm3s_putreg32(regval, LM3S_TIMER_GPTMCTL(num));
 }
+
+/***************************************************************************/
 
 static void timer_set_mode(enum clock_event_mode mode,
          struct clock_event_device *clk)
@@ -96,6 +108,8 @@ static void timer_set_mode(enum clock_event_mode mode,
   }
 }
 
+/***************************************************************************/
+
 static int timer_set_next_event(unsigned long evt,
         struct clock_event_device *clk)
 {
@@ -112,6 +126,8 @@ static int timer_set_next_event(unsigned long evt,
   return 0;
 }
 
+/***************************************************************************/
+
 static void __init clockevents_init(unsigned int irqn)
 {
   sysclk_clockevent.irq = irqn;
@@ -125,10 +141,14 @@ static void __init clockevents_init(unsigned int irqn)
   clockevents_register_device(&sysclk_clockevent);
 }
 
+/***************************************************************************/
+
 static cycle_t clock_get_cycles(struct clocksource *cs)
 {
   return lm3s_getreg32(LM3S_TIMER_GPTMTAR(1));
 }
+
+/***************************************************************************/
 
 static void __init clocksource_init()
 {
@@ -146,6 +166,8 @@ static void __init clocksource_init()
 
   clocksource_register(&sysclk_clocksource);
 }
+
+/***************************************************************************/
 
 /*
  * IRQ handler for the timer
@@ -166,12 +188,16 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
   return IRQ_HANDLED;
 }
 
+/***************************************************************************/
+
 static struct irqaction timer_irqaction = {
   .name     = "LM3S1D21 Timer Tick",
   .flags    = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
   .handler  = timer_interrupt,
   .dev_id   = &sysclk_clockevent,
 };
+
+/***************************************************************************/
 
 void __init lm3s1d21_timer_init()
 {

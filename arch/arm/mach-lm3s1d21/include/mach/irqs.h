@@ -28,6 +28,10 @@
 
 #define NR_IRQS			37
 
+#define LM3S1D21_UART0_IRQ    5
+#define LM3S1D21_UART1_IRQ    6
+#define LM3S1D21_UART2_IRQ    33
+
 #define LM3S1D21_TIMER0_IRQ   19
 #define LM3S1D21_TIMER1_IRQ   21
 

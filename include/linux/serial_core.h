@@ -182,6 +182,9 @@
 /* Aeroflex Gaisler GRLIB APBUART */
 #define PORT_APBUART    90
 
+/* Texas Instruments LM3S UART */
+#define PORT_LM3S       91
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>

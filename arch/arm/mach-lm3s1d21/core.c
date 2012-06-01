@@ -14,36 +14,11 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
+/***************************************************************************/
+
 extern void __init lm3s1d21_timer_init();
 
-void board_red_LED_on(void)
-{
-  lm3s_configgpio(GPIO_CPU_LED);
-  lm3s_gpiowrite(GPIO_CPU_LED, 1);
-}
-
-void board_red_LED_on2(void)
-{
-  lm3s_configgpio(GPIO_CPU_LED);
-  lm3s_gpiowrite(GPIO_CPU_LED, 1);
-  while(1) {}
-}
-
-void board_red_LED_off(void)
-{
-  lm3s_configgpio(GPIO_CPU_LED);
-  lm3s_gpiowrite(GPIO_CPU_LED, 0);
-}
-
-void board_red_LED_toggle(void)
-{
-	lm3s_configgpio(GPIO_CPU_LED);
-
-	if( lm3s_gpioread(GPIO_CPU_LED, 0) )
-		lm3s_gpiowrite(GPIO_CPU_LED, 0);
-	else
-		lm3s_gpiowrite(GPIO_CPU_LED, 1);
-}
+/***************************************************************************/
 
 int board_translate_cs(unsigned int* translated_cs, unsigned int cs)
 {
@@ -63,16 +38,20 @@ int board_translate_cs(unsigned int* translated_cs, unsigned int cs)
   }
 }
 
+/***************************************************************************/
+
 static void __init init_machine(void)
 {
-  //printk("%s\n", __func__);
 }
+
+/***************************************************************************/
 
 static void __init init_irq(void)
 {
-  //printk("%s\n", __func__);
   nvic_init();
 }
+
+/***************************************************************************/
 
 static void __init timer_init(void)
 {
@@ -83,9 +62,14 @@ static struct sys_timer timer = {
   .init   = timer_init,
 };
 
+/***************************************************************************/
+
 static void __init map_io(void)
 {
 }
+
+/***************************************************************************/
+/***************************************************************************/
 
 MACHINE_START(LM3S1D21, "ARM LM3S1D21")
   .phys_io  = LM3S_PERIPH_BASE,

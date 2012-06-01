@@ -4,48 +4,54 @@
 
 #include <mach/hardware.h>
 
-#define LM3S_CONSOLE_BASE LM3S_UART0_BASE
+#ifdef CONFIG_LM3S_EARLY_CONSOLE_UART0
+#define LM3S_EARLY_CONSOLE_BASE LM3S_UART0_BASE
+#endif
 
-static int serial_getc(void)
+int lm3s_uart_getc(uint32_t uart_base)
 {
 	/* Wait for a character from the UART */
-	while ((lm3s_getreg32(LM3S_CONSOLE_BASE + LM3S_UART_FR_OFFSET) & UART_FR_RXFE));
+	while ((lm3s_getreg32(uart_base + LM3S_UART_FR_OFFSET) & UART_FR_RXFE));
 
-	return (int)(lm3s_getreg32(LM3S_CONSOLE_BASE + LM3S_UART_DR_OFFSET) & UART_DR_DATA_MASK);
+	return (int)(lm3s_getreg32(uart_base + LM3S_UART_DR_OFFSET) & UART_DR_DATA_MASK);
 }
 
-static void serial_putc(const char ch)
+void lm3s_uart_putc(uint32_t uart_base, const char ch)
 {
   /* Then send the character */
-  lm3s_putreg32((uint32_t)ch, LM3S_CONSOLE_BASE + LM3S_UART_DR_OFFSET);
+  lm3s_putreg32((uint32_t)ch, uart_base + LM3S_UART_DR_OFFSET);
 
-  while ((lm3s_getreg32(LM3S_CONSOLE_BASE + LM3S_UART_FR_OFFSET) & UART_FR_TXFE) == 0);
+  while ((lm3s_getreg32(uart_base + LM3S_UART_FR_OFFSET) & UART_FR_TXFE) == 0);
 }
 
-static int serial_tstc(void)
+int lm3s_uart_tstc(uint32_t uart_base)
 {
 	/* Test for a character from the UART */
-	return (lm3s_getreg32(LM3S_CONSOLE_BASE + LM3S_UART_FR_OFFSET) & UART_FR_RXFE) == 0;
+	return (lm3s_getreg32(uart_base + LM3S_UART_FR_OFFSET) & UART_FR_RXFE) == 0;
 }
 
-static void serial_puts(const char *s)
+void lm3s_uart_puts(uint32_t uart_base, const char *s)
 {
 	while (*s)
   {
-		serial_putc (*s);
+		lm3s_uart_putc (uart_base, *s);
     /* If \n, also do \r */
     if (*s == '\n')
-      serial_putc('\r');
+      lm3s_uart_putc(uart_base, '\r');
     s++;
   }
 }
 
 void printascii(const char *str)
 {
-  serial_puts(str);
+#ifdef LM3S_EARLY_CONSOLE_BASE
+  lm3s_uart_putc(LM3S_EARLY_CONSOLE_BASE, str);
+#endif
 }
 
 void printch(char ch)
 {
-  serial_putc(ch);
+#ifdef LM3S_EARLY_CONSOLE_BASE
+  lm3s_uart_putc(LM3S_EARLY_CONSOLE_BASE, ch);
+#endif
 }
