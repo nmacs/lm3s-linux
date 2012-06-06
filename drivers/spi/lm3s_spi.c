@@ -25,6 +25,7 @@
  */
 
 //#define DEBUG
+//#define VERBOSE_DEBUG
 
 #include <linux/clk.h>
 #include <linux/completion.h>
@@ -48,7 +49,8 @@
 /***************************************************************************/
 
 #define DRIVER_NAME        "lm3s-spi"
-#define CONFIG_SSI_TXLIMIT 8
+#define LM3S_TXFIFO_WORDS  8
+#define CONFIG_SSI_TXLIMIT (LM3S_TXFIFO_WORDS/2)
 
 /***************************************************************************/
 /*                         Data structures                                 */
@@ -493,6 +495,8 @@ static irqreturn_t spi_lm3s_isr(int irq, void *dev_id)
 {
   struct spi_lm3s_data *priv = dev_id;
 
+  dev_vdbg(priv->dev, "%s\n", __func__);
+
   uint32_t regval;
   int ntxd;
 
@@ -536,6 +540,9 @@ static int spi_lm3s_transfer(struct spi_device *spi,
         struct spi_transfer *transfer)
 {
   struct spi_lm3s_data *priv = spi_master_get_devdata(spi->master);
+
+  dev_vdbg(priv->dev, "%s: tx_buf %x, rx_buf %x, len %u\n", __func__,
+     transfer->tx_buf, transfer->rx_buf, transfer->len);
 
   /* Set up to perform the transfer */
 
