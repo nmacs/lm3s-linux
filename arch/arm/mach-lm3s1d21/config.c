@@ -79,7 +79,7 @@ static struct spi_board_info uwic_spi_board_info[] __initdata = {
   },
   {
     .modalias      = "ks8851",
-    .max_speed_hz  = 25 * 1000000,
+    .max_speed_hz  = 10 * 1000000,
     .bus_num       = 0,
     .chip_select   = 2,
     .irq           = LM3S1D21_GPIOG_IRQ, // ETH IRQ on PG5
@@ -119,10 +119,14 @@ static struct platform_device *lm3s_devices[] __initdata = {
 
 /***************************************************************************/
 
+extern void lm3s_gpioirqenable(uint32_t pinset);
+
 static int __init init_lm3s1d21(void)
 {
   platform_add_devices(lm3s_devices, ARRAY_SIZE(lm3s_devices));
   spi_register_board_info(uwic_spi_board_info, ARRAY_SIZE(uwic_spi_board_info));
+
+  lm3s_gpioirqenable(GPIO_ETH_INTRN);
 
   return 0;
 }
