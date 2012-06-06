@@ -375,6 +375,8 @@
 #  define GPIO_SSI0_CS_EE  (GPIO_FUNC_OUTPUT    | GPIO_PORTA | 6 | GPIO_VALUE_ONE)   /* PA6: SSI0 EEPROM chip select */
 #  define GPIO_SSI0_CS_ETH (GPIO_FUNC_OUTPUT    | GPIO_PORTA | 3 | GPIO_VALUE_ONE)   /* PA3: SSI0 ETH chip select */
 
+#  define GPIO_ETH_INTRN   (GPIO_FUNC_INTERRUPT | GPIO_PORTG | 5 | GPIO_INT_LOWLEVEL)/* PG5: ETH chip interrupt */
+
 #  define GPIO_POWER_HOLD  (GPIO_FUNC_OUTPUT    | GPIO_PORTF | 6)                    /* PF6: Power Hold (output) */
 #  define GPIO_POWER_FAIL  (GPIO_FUNC_INPUT     | GPIO_PORTB | 6)                    /* PB6: Power Fail (input)  */
 #  define GPIO_CPU_LED     (GPIO_FUNC_OUTPUT    | GPIO_PORTD | 1)                    /* PB6: CPU LED */

@@ -35,4 +35,9 @@
 #define LM3S1D21_TIMER0_IRQ   19
 #define LM3S1D21_TIMER1_IRQ   21
 
+#define LM3S1D21_SSI0_IRQ     7
+#define LM3S1D21_SSI1_IRQ     34
+
+#define LM3S1D21_GPIOG_IRQ    31
+
 #endif
