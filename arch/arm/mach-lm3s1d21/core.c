@@ -20,26 +20,6 @@ extern void __init lm3s1d21_timer_init();
 
 /***************************************************************************/
 
-int board_translate_cs(unsigned int* translated_cs, unsigned int cs)
-{
-  switch(cs)
-  {
-  case 0:
-    *translated_cs = GPIO_SSI0_CS_SF;
-    return 0;
-  case 1:
-    *translated_cs = GPIO_SSI0_CS_EE;
-    return 0;
-  case 2:
-    *translated_cs = GPIO_SSI0_CS_ETH;
-    return 0;
-  default:
-    return -1;
-  }
-}
-
-/***************************************************************************/
-
 static void __init init_machine(void)
 {
 }
@@ -53,13 +33,8 @@ static void __init init_irq(void)
 
 /***************************************************************************/
 
-static void __init timer_init(void)
-{
-  lm3s1d21_timer_init();
-}
-
-static struct sys_timer timer = {
-  .init   = timer_init,
+static struct sys_timer __initdata timer = {
+  .init   = lm3s1d21_timer_init,
 };
 
 /***************************************************************************/

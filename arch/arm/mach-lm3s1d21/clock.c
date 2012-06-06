@@ -18,7 +18,7 @@ static void timer_set_mode(enum clock_event_mode mode,
 static int timer_set_next_event(unsigned long evt,
          struct clock_event_device *unused);
 static void __init clockevents_init(unsigned int irqn);
-static void __init clocksource_init();
+static void __init clocksource_init(void);
 static irqreturn_t timer_interrupt(int irq, void *dev_id);
 static cycle_t clock_get_cycles(struct clocksource *cs);
 
