@@ -847,3 +847,66 @@ int lm3s_gpioread(uint32_t pinset, int value)
   return (lm3s_getreg32(base + LM3S_GPIO_DATA_OFFSET + (1 << (pinno + 2))) != 0);
 }
 
+void lm3s_gpioirqenable(uint32_t pinset)
+{
+  unsigned int port;
+  unsigned int pinno;
+  uint32_t     base;
+  uint32_t     regval;
+
+  /* Decode the basics */
+
+  port  = (pinset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
+  pinno = (pinset & GPIO_NUMBER_MASK);
+
+  /* Get the base address associated with the GPIO port */
+
+  base = lm3s_gpiobaseaddress(port);
+
+  regval = lm3s_getreg32(base + LM3S_GPIO_IM_OFFSET);
+  regval |= (1 << pinno);
+  lm3s_putreg32(regval, base + LM3S_GPIO_IM_OFFSET);
+}
+
+void lm3s_gpioirqdisable(uint32_t pinset)
+{
+  unsigned int port;
+  unsigned int pinno;
+  uint32_t     base;
+  uint32_t     regval;
+
+  /* Decode the basics */
+
+  port  = (pinset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
+  pinno = (pinset & GPIO_NUMBER_MASK);
+
+  /* Get the base address associated with the GPIO port */
+
+  base = lm3s_gpiobaseaddress(port);
+
+  regval = lm3s_getreg32(base + LM3S_GPIO_IM_OFFSET);
+  regval &= ~(1 << pinno);
+  lm3s_putreg32(regval, base + LM3S_GPIO_IM_OFFSET);
+}
+
+void lm3s_gpioclearint(uint32_t pinset)
+{
+  unsigned int port;
+  unsigned int pinno;
+  uint32_t     base;
+  uint32_t     regval;
+
+  /* Decode the basics */
+
+  port  = (pinset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
+  pinno = (pinset & GPIO_NUMBER_MASK);
+
+  /* Get the base address associated with the GPIO port */
+
+  base = lm3s_gpiobaseaddress(port);
+
+  regval = lm3s_getreg32(base + LM3S_GPIO_ICR_OFFSET);
+  regval &= ~(1 << pinno);
+  lm3s_putreg32(regval, base + LM3S_GPIO_ICR_OFFSET);
+}
+
