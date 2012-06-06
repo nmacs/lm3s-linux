@@ -12,7 +12,6 @@
 
 static void enable_timer(unsigned int num);
 static void disable_timer(unsigned int num);
-static int find_timer(struct clock_event_device* dev);
 static void timer_set_mode(enum clock_event_mode mode,
          struct clock_event_device *clk);
 static int timer_set_next_event(unsigned long evt,
@@ -116,7 +115,7 @@ static int timer_set_next_event(unsigned long evt,
   if( clk != &sysclk_clockevent )
   {
     printk(KERN_ERR "%s: unknown clock device %s\n", __func__, clk->name);
-    return;
+    return -1;
   }
 
   disable_timer(0);
@@ -199,7 +198,7 @@ static struct irqaction timer_irqaction = {
 
 /***************************************************************************/
 
-void __init lm3s1d21_timer_init()
+void __init lm3s1d21_timer_init(void)
 {
   uint32_t regval;
 
