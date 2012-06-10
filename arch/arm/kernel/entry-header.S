@@ -22,7 +22,7 @@
 @
 #define S_OFF		8
 
-/* 
+/*
  * The SWI code relies on the fact that R0 is at the bottom of the stack
  * (due to slow/fast restore user regs).
  */
@@ -101,7 +101,7 @@
 #ifdef CONFIG_VFPM
 	cmpne	lr, #0xffffffed
 #endif
-	addeq	sp, #32			@ returning to PSP, just restore MSP
+	addeq	sp, #S_FRAME_SIZE-S_R0			@ returning to PSP, just restore MSP
 	cpsie	i
 	bx	lr
 	.endm
