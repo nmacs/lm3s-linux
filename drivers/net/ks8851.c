@@ -22,6 +22,10 @@
 
 #include <linux/spi/spi.h>
 
+#ifdef CONFIG_ARCH_LM3S1D21
+#  include <mach/hardware.h>
+#endif
+
 #include "ks8851.h"
 
 /**
@@ -384,6 +388,10 @@ static void ks8851_init_mac(struct ks8851_net *ks)
 	ks8851_write_mac_addr(dev);
 }
 
+#ifdef CONFIG_ARCH_LM3S1D21
+extern void lm3s_gpioclearint(uint32_t pinset);
+#endif
+
 /**
  * ks8851_irq - device interrupt handler
  * @irq: Interrupt number passed from the IRQ hnalder.
@@ -395,6 +403,10 @@ static void ks8851_init_mac(struct ks8851_net *ks)
 static irqreturn_t ks8851_irq(int irq, void *pw)
 {
 	struct ks8851_net *ks = pw;
+
+#ifdef CONFIG_ARCH_LM3S1D21
+  lm3s_gpioclearint(GPIO_ETH_INTRN);
+#endif
 
 	disable_irq_nosync(irq);
 	schedule_work(&ks->irq_work);
