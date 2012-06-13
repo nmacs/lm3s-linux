@@ -90,16 +90,19 @@ static struct spi_board_info uwic_spi_board_info[] __initdata = {
 
 static struct lm3s_platform_uart platform_uarts[] = {
   {
-    .mapbase  = LM3S_UART0_BASE,
-    .irq    = LM3S1D21_UART0_IRQ,
+    .mapbase    = LM3S_UART0_BASE,
+    .irq        = LM3S1D21_UART0_IRQ,
+    .rcgc1_mask = SYSCON_RCGC1_UART0,
   },
   {
     .mapbase  = LM3S_UART1_BASE,
     .irq    = LM3S1D21_UART1_IRQ,
+    .rcgc1_mask = SYSCON_RCGC1_UART1,
   },
   {
     .mapbase  = LM3S_UART2_BASE,
     .irq    = LM3S1D21_UART2_IRQ,
+    .rcgc1_mask = SYSCON_RCGC1_UART2,
   },
   { },
 };

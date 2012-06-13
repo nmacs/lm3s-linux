@@ -363,6 +363,7 @@
 
 #define SYSCON_RCGC1_UART0            (1 << 0)  /* Bit 0: UART0 Clock Gating Control */
 #define SYSCON_RCGC1_UART1            (1 << 1)  /* Bit 1: UART1 Clock Gating Control */
+#define SYSCON_RCGC1_UART2            (1 << 2)  /* Bit 2: UART2 Clock Gating Control */
 #define SYSCON_RCGC1_SSI0             (1 << 4)  /* Bit 4: SSI0 Clock Gating Control */
 #define SYSCON_RCGC1_SSI1             (1 << 5)  /* Bit 5: SSI1 Clock Gating Control */
 #define SYSCON_RCGC1_I2C0             (1 << 12) /* Bit 12: I2C0 Clock Gating Control */

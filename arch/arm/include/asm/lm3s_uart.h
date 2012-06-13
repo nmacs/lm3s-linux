@@ -18,6 +18,7 @@ struct lm3s_platform_uart {
 	unsigned long	mapbase;	/* Physical address base */
 	void __iomem	*membase;	/* Virtual address if mapped */
 	unsigned int	irq;		/* Interrupt vector */
+	uint32_t rcgc1_mask; /* Mask to enable/disable clock gate */
 };
 
 /*
