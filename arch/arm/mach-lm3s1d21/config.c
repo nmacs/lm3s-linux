@@ -42,9 +42,14 @@ struct platform_device lm3s_spi_device0 = {
 
 static struct mtd_partition uwic_flash_partitions[] = {
   {
-    .name = "firmware",
-    .size = MTDPART_SIZ_FULL,
+    .name = "kernel",
+    .size = (1024 * SZ_1K),
     .offset = 0,
+  },
+  {
+    .name = "cramfs",
+    .size = MTDPART_SIZ_FULL,
+    .offset = (1024 * SZ_1K),
   },
 };
 
@@ -65,21 +70,21 @@ static struct spi_eeprom uwic_eeprom_chip = {
 static struct spi_board_info uwic_spi_board_info[] __initdata = {
   {
     .modalias      = "m25p80",
-    .max_speed_hz  = 50 * 1000000,
+    .max_speed_hz  = 5 * 1000000,
     .bus_num       = 0,
     .chip_select   = 0,
     .platform_data = &uwic_flash_chip,
   },
   {
     .modalias      = "at25",
-    .max_speed_hz  = 25 * 1000000,
+    .max_speed_hz  = 5 * 1000000,
     .bus_num       = 0,
     .chip_select   = 1,
     .platform_data = &uwic_eeprom_chip,
   },
   {
     .modalias      = "ks8851",
-    .max_speed_hz  = 10 * 1000000,
+    .max_speed_hz  = 5 * 1000000,
     .bus_num       = 0,
     .chip_select   = 2,
     .irq           = LM3S1D21_GPIOG_IRQ, // ETH IRQ on PG5
