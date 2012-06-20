@@ -45,7 +45,7 @@
 
 /****************************************************************************/
 
-#if 1
+#if 0
 #define DEBUG 1
 #endif
 
@@ -668,7 +668,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 		}
 	}
 
-	//if (flags & FLAT_FLAG_KTRACE)
+	if (flags & FLAT_FLAG_KTRACE)
 		printk("Mapping is %x, Entry point is %x, data_start is %x\n",
 			(int)textpos, 0x00ffffff&ntohl(hdr->entry), ntohl(hdr->data_start));
 
