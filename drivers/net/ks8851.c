@@ -602,7 +602,7 @@ static void ks8851_irq_work(struct work_struct *work)
 		handled |= IRQ_RXI;
 
 	if (status & IRQ_SPIBEI) {
-		dev_err(&ks->spidev->dev, "%s: spi bus error\n", __func__);
+		dev_dbg(&ks->spidev->dev, "%s: spi bus error\n", __func__);
 		handled |= IRQ_SPIBEI;
 	}
 
