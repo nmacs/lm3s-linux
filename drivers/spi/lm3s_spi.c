@@ -26,6 +26,7 @@
 
 //#define DEBUG
 //#define VERBOSE_DEBUG
+#define POLLING_MODE
 
 #include <linux/clk.h>
 #include <linux/completion.h>
@@ -375,6 +376,7 @@ static int ssi_performtx(struct spi_lm3s_data *priv)
 
     /* Check again... Now have all of the Tx words been sent? */
 
+#ifndef POLLING_MODE
     regval = ssi_getreg(priv, LM3S_SSI_IM_OFFSET);
     if (priv->ntxwords > 0)
     {
@@ -392,6 +394,7 @@ static int ssi_performtx(struct spi_lm3s_data *priv)
       regval &= ~(SSI_IM_TX|SSI_RIS_ROR);
     }
     ssi_putreg(priv, LM3S_SSI_IM_OFFSET, regval);
+#endif
   }
 
   return ntxd;
@@ -414,6 +417,7 @@ static inline void ssi_performrx(struct spi_lm3s_data *priv)
       priv->nrxwords++;
     }
   }
+#ifndef POLLING_MODE
   /* The Rx FIFO is now empty.  While there is Tx data to be sent, the
    * transfer will be driven by Tx FIFO interrupts.  The final part
    * of the transfer is driven by Rx FIFO interrupts only.
@@ -439,11 +443,12 @@ static inline void ssi_performrx(struct spi_lm3s_data *priv)
   }
 
   ssi_putreg(priv, LM3S_SSI_IM_OFFSET, regval);
+#endif
 }
 
 /***************************************************************************/
 
-static void spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
+static int spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
 {
   int ntxd;
 
@@ -465,14 +470,20 @@ static void spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
   /* Check if the transfer is complete */
   if (priv->nrxwords >= priv->nwords)
   {
+#ifndef POLLING_MODE
     /* Yes.. Disable all SSI interrupt sources */
     ssi_putreg(priv, LM3S_SSI_IM_OFFSET, 0);
+#endif
 
     /* Wake up the waiting thread */
-    complete(&priv->xfer_done);
+    //complete(&priv->xfer_done);
 
-    dev_vdbg(priv->dev, "Transfer complete\n");
+    dev_dbg(priv->dev, "Transfer complete\n");
+
+    return 0;
   }
+
+  return 1;
 }
 
 /***************************************************************************/
@@ -483,14 +494,16 @@ static void spi_lm3s_chipselect(struct spi_device *spi, int is_active)
   uint32_t chipselect = priv->chipselect[spi->chip_select];
   int active = is_active != BITBANG_CS_INACTIVE;
   int dev_is_lowactive = !(spi->mode & SPI_CS_HIGH);
+  int value = dev_is_lowactive ^ active;
 
-  dev_vdbg(priv->dev, "%s: cs %i, value %i\n", __func__, spi->chip_select, dev_is_lowactive ^ active);
+  dev_dbg(priv->dev, "%s: cs %i, value %i\n", __func__, spi->chip_select, dev_is_lowactive ^ active);
 
   lm3s_gpiowrite(chipselect, dev_is_lowactive ^ active);
 }
 
 /***************************************************************************/
 
+#ifndef POLLING_MODE
 static irqreturn_t spi_lm3s_isr(int irq, void *dev_id)
 {
   struct spi_lm3s_data *priv = dev_id;
@@ -508,6 +521,7 @@ static irqreturn_t spi_lm3s_isr(int irq, void *dev_id)
 
   return IRQ_HANDLED;
 }
+#endif
 
 /***************************************************************************/
 
@@ -541,7 +555,7 @@ static int spi_lm3s_transfer(struct spi_device *spi,
 {
   struct spi_lm3s_data *priv = spi_master_get_devdata(spi->master);
 
-  dev_vdbg(priv->dev, "%s: tx_buf %x, rx_buf %x, len %u\n", __func__,
+  dev_dbg(priv->dev, "%s: tx_buf %x, rx_buf %x, len %u\n", __func__,
      transfer->tx_buf, transfer->rx_buf, transfer->len);
 
   /* Set up to perform the transfer */
@@ -567,13 +581,21 @@ static int spi_lm3s_transfer(struct spi_device *spi,
   /* Set CR0 */
   ssi_putreg(priv, LM3S_SSI_CR0_OFFSET, priv->cr0);
 
+#ifndef POLLING_MODE
   init_completion(&priv->xfer_done);
+#endif
 
   ssi_enable(priv);
 
+#ifndef POLLING_MODE
   spi_lm3s_transfer_step(priv);
+#else
+  while( spi_lm3s_transfer_step(priv) ) {};
+#endif
 
+#ifndef POLLING_MODE
   wait_for_completion(&priv->xfer_done);
+#endif
 
   ssi_disable(priv);
 
@@ -586,7 +608,7 @@ static int spi_lm3s_setup(struct spi_device *spi)
 {
   struct spi_lm3s_data *priv = spi_master_get_devdata(spi->master);
 
-  dev_vdbg(priv->dev, "%s: mode %d, %u bpw, %d hz\n", __func__,
+  dev_dbg(priv->dev, "%s: mode %d, %u bpw, %d hz\n", __func__,
      spi->mode, spi->bits_per_word, spi->max_speed_hz);
 
   spi_lm3s_chipselect(spi, BITBANG_CS_INACTIVE);
@@ -664,11 +686,13 @@ static int __devinit spi_lm3s_probe(struct platform_device *pdev)
     goto out_iounmap;
   }
 
+#ifndef POLLING_MODE
   ret = request_irq(priv->irq, spi_lm3s_isr, 0, DRIVER_NAME, priv);
   if (ret) {
     dev_err(&pdev->dev, "can't get irq%d: %d\n", priv->irq, ret);
     goto out_iounmap;
   }
+#endif
 
   enable_ssi_clock();
 
@@ -683,7 +707,9 @@ static int __devinit spi_lm3s_probe(struct platform_device *pdev)
   return ret;
 
 out_free_irq:
+#ifndef POLLING_MODE
   free_irq(priv->irq, priv);
+#endif
 out_iounmap:
   iounmap(priv->base);
 out_release_mem:
