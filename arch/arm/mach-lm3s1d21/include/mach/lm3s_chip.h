@@ -109,6 +109,7 @@
 #  define LM2S_NPWM            0  /* No PWM generator modules */
 #  define LM3S_NQEI            0  /* No quadrature encoders */
 #  define LM3S_NPORTS          9  /* 8 Ports (GPIOA-H) 5-38 GPIOs */
+#  define LM3S_NUDMA           32 /* 32 uDMA channels */
 #else
 #  error "Capabilities not specified for this LM3S chip"
 #endif

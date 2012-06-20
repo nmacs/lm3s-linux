@@ -387,6 +387,7 @@
 #define SYSCON_RCGC2_GPIOF            (1 << 5)  /* Bit 5: Port F Clock Gating Control */
 #define SYSCON_RCGC2_GPIOG            (1 << 6)  /* Bit 6: Port G Clock Gating Control */
 #define SYSCON_RCGC2_GPIOH            (1 << 7)  /* Bit 7: Port H Clock Gating Control */
+#define SYSCON_RCGC2_UDMA             (1 << 13) /* Bit 13: uDMA Clock Gating Control */
 #define SYSCON_RCGC2_EMAC0            (1 << 28) /* Bit 28: MAC0 Clock Gating Control */
 #define SYSCON_RCGC2_EPHY0            (1 << 30) /* Bit 30: PHY0 Clock Gating Control */
 
