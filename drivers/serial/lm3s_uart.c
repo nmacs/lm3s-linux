@@ -15,8 +15,8 @@
  *  (C) Copyright 2003-2007, Greg Ungerer <gerg@snapgear.com>
  */
 
-#define DEBUG 1
-#define VERBOSE_DEBUG 1
+//#define DEBUG 1
+//#define VERBOSE_DEBUG 1
 
 /****************************************************************************/
 
@@ -47,6 +47,30 @@ struct lm3s_serial_port {
   uint32_t rcgc1_mask;
 };
 
+static int lm3s_tx_chars(struct lm3s_serial_port *pp);
+
+/****************************************************************************/
+
+static void lm3s_enable_uart(struct uart_port *port)
+{
+  uint32_t regval;
+
+  regval = lm3s_getreg32(port->membase + LM3S_UART_CTL_OFFSET);
+  regval |= UART_CTL_UARTEN;
+  lm3s_putreg32(regval, port->membase + LM3S_UART_CTL_OFFSET);
+}
+
+/****************************************************************************/
+
+static void lm3s_disable_uart(struct uart_port *port)
+{
+  uint32_t regval;
+
+  regval = lm3s_getreg32(port->membase + LM3S_UART_CTL_OFFSET);
+  regval &= ~UART_CTL_UARTEN;
+  lm3s_putreg32(regval, port->membase + LM3S_UART_CTL_OFFSET);
+}
+
 /****************************************************************************/
 
 static unsigned int lm3s_tx_empty(struct uart_port *port)
@@ -76,18 +100,25 @@ static void lm3s_start_tx(struct uart_port *port)
 {
   unsigned long flags;
   uint32_t regval;
+  struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
 
-  //dev_dbg(port->dev, "%s\n", __func__);
+  //while (1) {}
+
+  //struct circ_buf *xmit = &port->state->xmit;
+  dev_dbg(port->dev, "%s\n", __func__);
 
   spin_lock_irqsave(&port->lock, flags);
 
-  regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
-  regval |= UART_IM_TXIM;
-  lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
+  if( lm3s_tx_chars(pp) )
+  {
+    regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
+    regval |= UART_IM_TXIM;
+    lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
+  }
 
-  regval = lm3s_getreg32(port->membase + LM3S_UART_CTL_OFFSET);
-  regval |= UART_CTL_TXE;
-  lm3s_putreg32(regval, port->membase + LM3S_UART_CTL_OFFSET);
+  //regval = lm3s_getreg32(port->membase + LM3S_UART_CTL_OFFSET);
+  //regval |= UART_CTL_TXE;
+  //lm3s_putreg32(regval, port->membase + LM3S_UART_CTL_OFFSET);
 
   spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -99,17 +130,13 @@ static void lm3s_stop_tx(struct uart_port *port)
   unsigned long flags;
   uint32_t regval;
 
-  //dev_dbg(port->dev, "%s\n", __func__);
+  dev_dbg(port->dev, "%s\n", __func__);
 
   spin_lock_irqsave(&port->lock, flags);
 
   regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
   regval &= ~UART_IM_TXIM;
   lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
-
-  regval = lm3s_getreg32(port->membase + LM3S_UART_CTL_OFFSET);
-  regval &= ~UART_CTL_TXE;
-  lm3s_putreg32(regval, port->membase + LM3S_UART_CTL_OFFSET);
 
   spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -121,17 +148,13 @@ static void lm3s_stop_rx(struct uart_port *port)
   unsigned long flags;
   uint32_t regval;
 
-  //dev_dbg(port->dev, "%s\n", __func__);
+  dev_dbg(port->dev, "%s\n", __func__);
 
   spin_lock_irqsave(&port->lock, flags);
 
   regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
   regval &= ~(UART_IM_RXIM | UART_IM_RTIM);
   lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
-
-  regval = lm3s_getreg32(port->membase + LM3S_UART_CTL_OFFSET);
-  regval &= ~UART_CTL_RXE;
-  lm3s_putreg32(regval, port->membase + LM3S_UART_CTL_OFFSET);
 
   spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -170,24 +193,17 @@ static void lm3s_enable_ms(struct uart_port *port)
 static int lm3s_startup(struct uart_port *port)
 {
   unsigned long flags;
+  uint32_t regval;
 
-  //dev_dbg(port->dev, "%s\n", __func__);
+  dev_dbg(port->dev, "%s\n", __func__);
 
   spin_lock_irqsave(&port->lock, flags);
 
-  /* Reset UART, get it into known state... */
-  lm3s_putreg32(0, port->membase + LM3S_UART_CTL_OFFSET);
-  lm3s_putreg32(0, port->membase + LM3S_UART_LCRH_OFFSET);
-
-  lm3s_putreg32(UART_LCRH_FEN, port->membase + LM3S_UART_LCRH_OFFSET);
-
-  /* Enable the UART transmitter and receiver */
-  lm3s_putreg32(UART_CTL_TXE | UART_CTL_RXE | UART_CTL_UARTEN,
-                port->membase + LM3S_UART_CTL_OFFSET);
+  lm3s_enable_uart(port);
 
   /* Enable RX interrupts now */
   lm3s_putreg32(UART_IM_RXIM | UART_IM_RTIM,
-               port->membase + LM3S_UART_IM_OFFSET);
+                port->membase + LM3S_UART_IM_OFFSET);
 
   spin_unlock_irqrestore(&port->lock, flags);
 
@@ -200,16 +216,14 @@ static void lm3s_shutdown(struct uart_port *port)
 {
   unsigned long flags;
 
-  //dev_dbg(port->dev, "%s\n", __func__);
+  dev_dbg(port->dev, "%s\n", __func__);
 
   spin_lock_irqsave(&port->lock, flags);
 
   /* Disable all interrupts now */
   lm3s_putreg32(0, port->membase + LM3S_UART_IM_OFFSET);
 
-  /* Reset UART, get it into known state... */
-  lm3s_putreg32(0, port->membase + LM3S_UART_CTL_OFFSET);
-  lm3s_putreg32(0, port->membase + LM3S_UART_LCRH_OFFSET);
+  lm3s_disable_uart(port);
 
   spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -387,7 +401,7 @@ static void lm3s_rx_chars(struct lm3s_serial_port *pp)
 
 /****************************************************************************/
 
-static void lm3s_tx_chars(struct lm3s_serial_port *pp)
+static int lm3s_tx_chars(struct lm3s_serial_port *pp)
 {
   struct uart_port *port = &pp->port;
   struct circ_buf *xmit = &port->state->xmit;
@@ -395,12 +409,18 @@ static void lm3s_tx_chars(struct lm3s_serial_port *pp)
 
   //dev_dbg(port->dev, "%s\n", __func__);
 
+  if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
+    regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
+    regval &= ~UART_IM_TXIM;
+    lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
+    return 0;
+  }
+
   if (port->x_char) {
     /* Send special char - probably flow control */
     lm3s_putreg32(port->x_char, port->membase + LM3S_UART_DR_OFFSET);
     port->x_char = 0;
     port->icount.tx++;
-    return;
   }
 
   while ((lm3s_getreg32(port->membase + LM3S_UART_FR_OFFSET) & UART_FR_TXFF) == 0) {
@@ -418,7 +438,10 @@ static void lm3s_tx_chars(struct lm3s_serial_port *pp)
     regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
     regval &= ~UART_IM_TXIM;
     lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
+    return 0;
   }
+
+  return 1;
 }
 
 /****************************************************************************/
@@ -432,7 +455,7 @@ static irqreturn_t lm3s_interrupt(int irq, void *data)
   //dev_vdbg(port->dev, "%s\n", __func__);
 
   isr = lm3s_getreg32(port->membase + LM3S_UART_MIS_OFFSET);
-  lm3s_putreg32(isr, port->membase + LM3S_UART_ICR_OFFSET);
+  lm3s_putreg32(0xFFFFFFFF, port->membase + LM3S_UART_ICR_OFFSET);
 
   if (isr & (UART_MIS_RXMIS | UART_MIS_RTMIS))
     lm3s_rx_chars(pp);
@@ -447,9 +470,6 @@ static irqreturn_t lm3s_interrupt(int irq, void *data)
 static void lm3s_config_port(struct uart_port *port, int flags)
 {
   port->type = PORT_LM3S;
-
-  /* Clear mask, so no surprise interrupts. */
-  lm3s_putreg32(0, port->membase + LM3S_UART_IM_OFFSET);
 
   if (request_irq(port->irq, lm3s_interrupt, IRQF_DISABLED, "UART", port))
     dev_err(port->dev, "Unable to attach UART %d "
@@ -474,6 +494,13 @@ static int lm3s_request_port(struct uart_port *port)
   regval |= pp->rcgc1_mask;
   lm3s_putreg32(regval, LM3S_SYSCON_RCGC1);
 
+  /* Clear mask, so no surprise interrupts. */
+  lm3s_putreg32(0, port->membase + LM3S_UART_IM_OFFSET);
+
+  regval = lm3s_getreg32(port->membase + LM3S_UART_LCRH_OFFSET);
+  regval |= UART_LCRH_FEN;
+  lm3s_putreg32(regval, port->membase + LM3S_UART_LCRH_OFFSET);
+
   return 0;
 }
 
@@ -483,6 +510,9 @@ static void lm3s_release_port(struct uart_port *port)
 {
   uint32_t regval;
   struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
+
+  /* Clear mask, so no surprise interrupts. */
+  lm3s_putreg32(0, port->membase + LM3S_UART_IM_OFFSET);
 
   regval = lm3s_getreg32(LM3S_SYSCON_RCGC1);
   regval &= ~pp->rcgc1_mask;
