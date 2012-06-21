@@ -58,10 +58,13 @@
 /***************************************************************************/
 
 struct spi_lm3s_config {
-  unsigned int speed_hz;
-  unsigned int bits_per_word;
-  unsigned int mode;
-  uint32_t chipselect;
+  uint32_t cpsdvsr;
+  uint32_t cr0;
+  uint32_t gpio_chipselect;
+
+  uint32_t mode;
+  uint32_t bits_per_word;
+  uint32_t speed_hz;
 };
 
 /***************************************************************************/
@@ -73,10 +76,6 @@ struct spi_lm3s_data {
   void *base;
   int irq;
   uint32_t *chipselect;
-  struct device *dev;
-
-  uint32_t cpsdvsr;
-  uint32_t cr0;
 
   void  *txbuffer;              /* Source buffer */
   void  *rxbuffer;              /* Destination buffer */
@@ -84,7 +83,6 @@ struct spi_lm3s_data {
   int      ntxwords;            /* Number of words left to transfer on the Tx FIFO */
   int      nrxwords;            /* Number of words received on the Rx FIFO */
   int      nwords;              /* Number of words to be exchanged */
-  uint8_t  nbits;               /* Current number of bits per word */
 
   void  (*txword)(struct spi_lm3s_data *priv);
   void  (*rxword)(struct spi_lm3s_data *priv);
@@ -148,39 +146,38 @@ static void disable_ssi_clock()
 
 /***************************************************************************/
 
-static void ssi_setmode(struct spi_lm3s_data *priv, struct spi_lm3s_config *config)
+static void ssi_setmode(struct spi_lm3s_config *config, uint32_t mode)
 {
-  if (config->mode & SPI_CPHA)
-    priv->cr0 |= SSI_CR0_SPH;
+  if (mode & SPI_CPHA)
+    config->cr0 |= SSI_CR0_SPH;
   else
-    priv->cr0 &= ~SSI_CR0_SPH;
+    config->cr0 &= ~SSI_CR0_SPH;
 
-  if (config->mode & SPI_CPOL)
-    priv->cr0 |= SSI_CR0_SPO;
+  if (mode & SPI_CPOL)
+    config->cr0 |= SSI_CR0_SPO;
   else
-    priv->cr0 &= ~SSI_CR0_SPO;
+    config->cr0 &= ~SSI_CR0_SPO;
 }
 
 /***************************************************************************/
 
-static void ssi_setbits(struct spi_lm3s_data *priv, struct spi_lm3s_config *config)
+static void ssi_setbits(struct spi_lm3s_config *config, uint32_t bits_per_word)
 {
-  if (config->bits_per_word >=4 && config->bits_per_word <= 16)
+  if (bits_per_word >=4 && bits_per_word <= 16)
   {
-    priv->cr0 &= ~SSI_CR0_DSS_MASK;
-    priv->cr0 |= ((config->bits_per_word - 1) << SSI_CR0_DSS_SHIFT);
+    config->cr0 &= ~SSI_CR0_DSS_MASK;
+    config->cr0 |= ((bits_per_word - 1) << SSI_CR0_DSS_SHIFT);
   }
 }
 
 /***************************************************************************/
 
-static void ssi_setfrequency(struct spi_lm3s_data *priv, struct spi_lm3s_config *config)
+static void ssi_setfrequency(struct spi_lm3s_config *config, uint32_t frequency)
 {
   uint32_t maxdvsr;
   uint32_t cpsdvsr;
   uint32_t scr;
   uint32_t regval;
-  uint32_t frequency = config->speed_hz;
 
   /* "The serial bit rate is derived by dividing down the input clock
    *  (FSysClk). The clock is first divided by an even prescale value
@@ -234,23 +231,35 @@ static void ssi_setfrequency(struct spi_lm3s_data *priv, struct spi_lm3s_config 
   }
   while (scr > 255);
 
-  priv->cpsdvsr = cpsdvsr;
+  config->cpsdvsr = cpsdvsr;
+  config->cr0 = (config->cr0 & ~SSI_CR0_SCR_MASK) | (scr << SSI_CR0_SCR_SHIFT);
+}
 
-  regval = priv->cr0;
-  regval &= ~SSI_CR0_SCR_MASK;
-  regval |= (scr << SSI_CR0_SCR_SHIFT);
-  priv->cr0 = regval;
+/***************************************************************************/
 
-  /* Calcluate the actual frequency */
-  //priv->actual = CLOCK_TICK_RATE / (cpsdvsr * (scr + 1));
+static int lm3s_config(struct spi_lm3s_config *config,
+                       uint32_t mode, uint32_t bits_per_word, uint32_t speed_hz)
+{
+  config->cr0 = 0;
+  config->cpsdvsr = 0;
+
+  ssi_setmode(config, mode);
+  ssi_setbits(config, bits_per_word);
+  ssi_setfrequency(config, speed_hz);
+
+  config->mode = mode;
+  config->bits_per_word = bits_per_word;
+  config->speed_hz = speed_hz;
+
+  return 0;
 }
 
 /***************************************************************************/
 
 static void ssi_txnull(struct spi_lm3s_data *priv)
 {
-  dev_vdbg(priv->dev, "TX: ->0xffff\n");
-  ssi_putreg(priv, LM3S_SSI_DR_OFFSET, 0xffff);
+  dev_vdbg(&priv->bitbang.master->dev, "TX: ->0x0000\n");
+  ssi_putreg(priv, LM3S_SSI_DR_OFFSET, 0x0000);
 }
 
 /***************************************************************************/
@@ -258,7 +267,7 @@ static void ssi_txnull(struct spi_lm3s_data *priv)
 static void ssi_txuint16(struct spi_lm3s_data *priv)
 {
   uint16_t *ptr    = (uint16_t*)priv->txbuffer;
-  dev_vdbg(priv->dev, "TX: %p->%04x\n", ptr, *ptr);
+  dev_vdbg(&priv->bitbang.master->dev, "TX: %p->%04x\n", ptr, *ptr);
   ssi_putreg(priv, LM3S_SSI_DR_OFFSET, (uint32_t)(*ptr++));
   priv->txbuffer = (void*)ptr;
 }
@@ -268,7 +277,7 @@ static void ssi_txuint16(struct spi_lm3s_data *priv)
 static void ssi_txuint8(struct spi_lm3s_data *priv)
 {
   uint8_t *ptr   = (uint8_t*)priv->txbuffer;
-  dev_vdbg(priv->dev, "TX: %p->%02x\n", ptr, *ptr);
+  dev_vdbg(&priv->bitbang.master->dev, "TX: %p->%02x\n", ptr, *ptr);
   ssi_putreg(priv, LM3S_SSI_DR_OFFSET, (uint32_t)(*ptr++));
   priv->txbuffer = (void*)ptr;
 }
@@ -278,7 +287,7 @@ static void ssi_txuint8(struct spi_lm3s_data *priv)
 static void ssi_rxnull(struct spi_lm3s_data *priv)
 {
   uint32_t regval  = ssi_getreg(priv, LM3S_SSI_DR_OFFSET);
-  dev_vdbg(priv->dev, "RX: discard %04x\n", regval);
+  dev_vdbg(&priv->bitbang.master->dev, "RX: discard %04x\n", regval);
 }
 
 /***************************************************************************/
@@ -287,7 +296,7 @@ static void ssi_rxuint16(struct spi_lm3s_data *priv)
 {
   uint16_t *ptr    = (uint16_t*)priv->rxbuffer;
   *ptr           = (uint16_t)ssi_getreg(priv, LM3S_SSI_DR_OFFSET);
-  dev_vdbg(priv->dev, "RX: %p<-%04x\n", ptr, *ptr);
+  dev_vdbg(&priv->bitbang.master->dev, "RX: %p<-%04x\n", ptr, *ptr);
   priv->rxbuffer = (void*)(++ptr);
 }
 
@@ -297,31 +306,8 @@ static void ssi_rxuint8(struct spi_lm3s_data *priv)
 {
   uint8_t *ptr   = (uint8_t*)priv->rxbuffer;
   *ptr           = (uint8_t)ssi_getreg(priv, LM3S_SSI_DR_OFFSET);
-  dev_vdbg(priv->dev, "RX: %p<-%02x\n", ptr, *ptr);
+  dev_vdbg(&priv->bitbang.master->dev, "RX: %p<-%02x\n", ptr, *ptr);
   priv->rxbuffer = (void*)(++ptr);
-}
-
-/***************************************************************************/
-
-static int lm3s_config(struct spi_lm3s_data *priv,
-    struct spi_lm3s_config *config)
-{
-  ssi_setmode(priv, config);
-  ssi_setbits(priv, config);
-  ssi_setfrequency(priv, config);
-
-  if (config->bits_per_word > 8)
-  {
-    priv->txword = ssi_txuint16;
-    priv->rxword = ssi_rxuint16;
-  }
-  else
-  {
-    priv->txword = ssi_txuint8;
-    priv->rxword = ssi_rxuint8;
-  }
-
-  return 0;
 }
 
 /***************************************************************************/
@@ -452,7 +438,7 @@ static int spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
 {
   int ntxd;
 
-  dev_vdbg(priv->dev, "ntxwords: %d nrxwords: %d nwords: %d SR: %08x\n",
+  dev_vdbg(&priv->bitbang.master->dev, "ntxwords: %d nrxwords: %d nwords: %d SR: %08x\n",
           priv->ntxwords, priv->nrxwords, priv->nwords,
           ssi_getreg(priv, LM3S_SSI_SR_OFFSET));
 
@@ -462,7 +448,7 @@ static int spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
   /* Handle incoming Rx FIFO transfers */
   ssi_performrx(priv);
 
-  dev_vdbg(priv->dev, "ntxwords: %d nrxwords: %d nwords: %d SR: %08x IM: %08x\n",
+  dev_vdbg(&priv->bitbang.master->dev, "ntxwords: %d nrxwords: %d nwords: %d SR: %08x IM: %08x\n",
           priv->ntxwords, priv->nrxwords, priv->nwords,
           ssi_getreg(priv, LM3S_SSI_SR_OFFSET),
           ssi_getreg(priv, LM3S_SSI_IM_OFFSET));
@@ -478,7 +464,7 @@ static int spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
     /* Wake up the waiting thread */
     //complete(&priv->xfer_done);
 
-    dev_dbg(priv->dev, "Transfer complete\n");
+    dev_dbg(&priv->bitbang.master->dev, "Transfer complete\n");
 
     return 0;
   }
@@ -488,27 +474,12 @@ static int spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
-static void spi_lm3s_chipselect(struct spi_device *spi, int is_active)
-{
-  struct spi_lm3s_data *priv = spi_master_get_devdata(spi->master);
-  uint32_t chipselect = priv->chipselect[spi->chip_select];
-  int active = is_active != BITBANG_CS_INACTIVE;
-  int dev_is_lowactive = !(spi->mode & SPI_CS_HIGH);
-  int value = dev_is_lowactive ^ active;
-
-  dev_dbg(priv->dev, "%s: cs %i, value %i\n", __func__, spi->chip_select, dev_is_lowactive ^ active);
-
-  lm3s_gpiowrite(chipselect, dev_is_lowactive ^ active);
-}
-
-/***************************************************************************/
-
 #ifndef POLLING_MODE
 static irqreturn_t spi_lm3s_isr(int irq, void *dev_id)
 {
   struct spi_lm3s_data *priv = dev_id;
 
-  dev_vdbg(priv->dev, "%s\n", __func__);
+  dev_vdbg(&priv->bitbang.master->dev, "%s\n", __func__);
 
   uint32_t regval;
   int ntxd;
@@ -525,93 +496,136 @@ static irqreturn_t spi_lm3s_isr(int irq, void *dev_id)
 
 /***************************************************************************/
 
-static int spi_lm3s_setupxfer(struct spi_device *spi,
-         struct spi_transfer *t)
-{
-  struct spi_lm3s_data *priv = spi_master_get_devdata(spi->master);
-  struct spi_lm3s_config config;
-
-  config.bits_per_word = t ? t->bits_per_word : spi->bits_per_word;
-  config.speed_hz  = t ? t->speed_hz : spi->max_speed_hz;
-  config.mode = spi->mode;
-  config.chipselect = priv->chipselect[spi->chip_select];
-
-  if (!config.speed_hz)
-    config.speed_hz = spi->max_speed_hz;
-  if (!config.bits_per_word)
-    config.bits_per_word = spi->bits_per_word;
-  if (!config.speed_hz)
-    config.speed_hz = spi->max_speed_hz;
-
-  lm3s_config(priv, &config);
-
-  return 0;
-}
-
-/***************************************************************************/
-
 static int spi_lm3s_transfer(struct spi_device *spi,
         struct spi_transfer *transfer)
 {
-  struct spi_lm3s_data *priv = spi_master_get_devdata(spi->master);
+  struct spi_lm3s_data *priv_master = spi_master_get_devdata(spi->master);
+  struct spi_lm3s_config *dev_priv = spi_get_ctldata(spi);
 
-  dev_dbg(priv->dev, "%s: tx_buf %x, rx_buf %x, len %u\n", __func__,
-     transfer->tx_buf, transfer->rx_buf, transfer->len);
+  dev_dbg(&spi->dev, "%s: tx_buf 0x%X, rx_buf 0x%X, len %u, cr0 0x%X, cpsdvsr 0x%X\n", __func__,
+     transfer->tx_buf, transfer->rx_buf, transfer->len,
+     dev_priv->cr0, dev_priv->cpsdvsr);
 
   /* Set up to perform the transfer */
 
-  priv->txbuffer     = (uint8_t*)transfer->tx_buf; /* Source buffer */
-  priv->rxbuffer     = (uint8_t*)transfer->rx_buf; /* Destination buffer */
-  priv->ntxwords     = transfer->len;              /* Number of words left to send */
-  priv->nrxwords     = 0;                          /* Number of words received */
-  priv->nwords       = transfer->len;              /* Total number of exchanges */
+  priv_master->txbuffer     = (uint8_t*)transfer->tx_buf; /* Source buffer */
+  priv_master->rxbuffer     = (uint8_t*)transfer->rx_buf; /* Destination buffer */
+  priv_master->ntxwords     = transfer->len;              /* Number of words left to send */
+  priv_master->nrxwords     = 0;                          /* Number of words received */
+  priv_master->nwords       = transfer->len;              /* Total number of exchanges */
 
-  if (!priv->txbuffer)
-    priv->txword = ssi_txnull;
+  if (!priv_master->txbuffer)
+    priv_master->txword = ssi_txnull;
+  else
+  {
+    if (dev_priv->bits_per_word > 8)
+      priv_master->txword = ssi_txuint16;
+    else
+      priv_master->txword = ssi_txuint8;
+  }
 
-  if (!priv->rxbuffer)
-    priv->rxword = ssi_rxnull;
+  if (!priv_master->rxbuffer)
+    priv_master->rxword = ssi_rxnull;
+  else
+  {
+    if (dev_priv->bits_per_word > 8)
+      priv_master->rxword = ssi_rxuint16;
+    else
+      priv_master->rxword = ssi_rxuint8;
+  }
 
   /* Set CR1 */
-  ssi_putreg(priv, LM3S_SSI_CR1_OFFSET, 0);
+  ssi_putreg(priv_master, LM3S_SSI_CR1_OFFSET, 0);
 
   /* Set CPDVSR */
-  ssi_putreg(priv, LM3S_SSI_CPSR_OFFSET, priv->cpsdvsr);
+  ssi_putreg(priv_master, LM3S_SSI_CPSR_OFFSET, dev_priv->cpsdvsr);
 
   /* Set CR0 */
-  ssi_putreg(priv, LM3S_SSI_CR0_OFFSET, priv->cr0);
+  ssi_putreg(priv_master, LM3S_SSI_CR0_OFFSET, dev_priv->cr0);
 
 #ifndef POLLING_MODE
-  init_completion(&priv->xfer_done);
+  init_completion(&priv_master->xfer_done);
 #endif
 
-  ssi_enable(priv);
+  ssi_enable(priv_master);
 
 #ifndef POLLING_MODE
-  spi_lm3s_transfer_step(priv);
+  spi_lm3s_transfer_step(priv_master);
 #else
-  while( spi_lm3s_transfer_step(priv) ) {};
+  while( spi_lm3s_transfer_step(priv_master) ) {};
 #endif
 
 #ifndef POLLING_MODE
-  wait_for_completion(&priv->xfer_done);
+  wait_for_completion(&priv_master->xfer_done);
 #endif
 
-  ssi_disable(priv);
+  ssi_disable(priv_master);
 
   return transfer->len;
 }
 
 /***************************************************************************/
 
+static int spi_lm3s_setupxfer(struct spi_device *spi,
+         struct spi_transfer *t)
+{
+  struct spi_lm3s_config *priv_dev = spi_get_ctldata(spi);
+
+  uint32_t mode = spi->mode;
+  uint32_t bits_per_word = t ? t->bits_per_word : spi->bits_per_word;
+  uint32_t speed_hz = t ? t->speed_hz : spi->max_speed_hz;
+
+  if (!speed_hz)
+    speed_hz = spi->max_speed_hz;
+  if (!bits_per_word)
+    bits_per_word = spi->bits_per_word;
+
+  dev_dbg(&spi->dev, "%s speed_hz %i, mode %i\n", __func__, speed_hz, mode);
+
+  lm3s_config(priv_dev, mode, bits_per_word, speed_hz);
+
+  return 0;
+}
+
+/***************************************************************************/
+
+static void spi_lm3s_chipselect(struct spi_device *spi, int is_active)
+{
+  struct spi_lm3s_data *priv_master = spi_master_get_devdata(spi->master);
+  struct spi_lm3s_config *priv_dev = spi_get_ctldata(spi);
+
+  int active = is_active != BITBANG_CS_INACTIVE;
+  int dev_is_lowactive = !(spi->mode & SPI_CS_HIGH);
+  int value = dev_is_lowactive ^ active;
+
+  dev_dbg(&spi->dev, "%s: cs %i [0x%X], value %i\n", __func__,
+          spi->chip_select, priv_dev->gpio_chipselect, dev_is_lowactive ^ active);
+
+  lm3s_gpiowrite(priv_dev->gpio_chipselect, dev_is_lowactive ^ active);
+}
+
+/***************************************************************************/
+
 static int spi_lm3s_setup(struct spi_device *spi)
 {
-  struct spi_lm3s_data *priv = spi_master_get_devdata(spi->master);
+  if( spi->chip_select >= spi->master->num_chipselect )
+    return -EINVAL;
 
-  dev_dbg(priv->dev, "%s: mode %d, %u bpw, %d hz\n", __func__,
-     spi->mode, spi->bits_per_word, spi->max_speed_hz);
+  struct spi_lm3s_config *priv_dev =
+    kmalloc(sizeof(struct spi_lm3s_config), GFP_KERNEL);
+  if( priv_dev == 0 )
+    return -ENOMEM;
 
+  struct spi_lm3s_data *priv_master = spi_master_get_devdata(spi->master);
+
+  spi_set_ctldata(spi, priv_dev);
+
+  priv_dev->gpio_chipselect = priv_master->chipselect[spi->chip_select];
+  lm3s_config(priv_dev, spi->mode, spi->bits_per_word, spi->max_speed_hz);
   spi_lm3s_chipselect(spi, BITBANG_CS_INACTIVE);
+
+  dev_dbg(&spi->dev, "%s: mode %d, %u bpw, %d hz\n", __func__,
+     spi->mode, spi->bits_per_word, spi->max_speed_hz);
 
   return 0;
 }
@@ -620,6 +634,7 @@ static int spi_lm3s_setup(struct spi_device *spi)
 
 static void spi_lm3s_cleanup(struct spi_device *spi)
 {
+  kfree(spi_get_ctldata(spi));
 }
 
 /***************************************************************************/
@@ -648,7 +663,6 @@ static int __devinit spi_lm3s_probe(struct platform_device *pdev)
   master->num_chipselect = lm3s_platform_info->num_chipselect;
 
   priv = spi_master_get_devdata(master);
-  priv->dev = &pdev->dev;
   priv->bitbang.master = spi_master_get(master);
   priv->chipselect = lm3s_platform_info->chipselect;
 
@@ -731,7 +745,9 @@ static int __devexit spi_lm3s_remove(struct platform_device *pdev)
 
   spi_bitbang_stop(&priv->bitbang);
 
+#ifndef POLLING_MODE
   free_irq(priv->irq, priv);
+#endif
   iounmap(priv->base);
 
   spi_master_put(master);
