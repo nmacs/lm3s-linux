@@ -115,11 +115,13 @@ struct ks8851_net {
 	struct mii_if_info	mii;
 	struct ks8851_rxctrl	rxctrl;
 
+	struct work_struct	tx_check;
 	struct work_struct	tx_work;
 	struct work_struct	irq_work;
 	struct work_struct	rxctrl_work;
 
 	struct sk_buff_head	txq;
+	int			tx_len;
 
 	struct spi_message	spi_msg1;
 	struct spi_message	spi_msg2;
@@ -585,24 +587,11 @@ static void ks8851_irq_work(struct work_struct *work)
 	if (status & IRQ_RXPSI)
 		handled |= IRQ_RXPSI;
 
-	if (status & IRQ_TXI) {
-		handled |= IRQ_TXI;
-
-		/* no lock here, tx queue should have been stopped */
-
-		/* update our idea of how much tx space is available to the
-		 * system */
-		ks->tx_space = ks8851_rdreg16(ks, KS_TXMIR);
-
-		if (netif_msg_intr(ks))
-			ks_dbg(ks, "%s: txspace %d\n", __func__, ks->tx_space);
-	}
-
 	if (status & IRQ_RXI)
 		handled |= IRQ_RXI;
 
 	if (status & IRQ_SPIBEI) {
-		dev_dbg(&ks->spidev->dev, "%s: spi bus error\n", __func__);
+		dev_err(&ks->spidev->dev, "%s: spi bus error\n", __func__);
 		handled |= IRQ_SPIBEI;
 	}
 
@@ -634,9 +623,6 @@ static void ks8851_irq_work(struct work_struct *work)
 	}
 
 	mutex_unlock(&ks->lock);
-
-	if (status & IRQ_TXI)
-		netif_wake_queue(ks->netdev);
 
 	enable_irq(ks->netdev->irq);
 }
@@ -713,6 +699,17 @@ static void ks8851_done_tx(struct ks8851_net *ks, struct sk_buff *txb)
 	dev->stats.tx_packets++;
 
 	dev_kfree_skb(txb);
+}
+
+static void ks8851_tx_check(struct work_struct *work)
+{
+	struct ks8851_net *ks = container_of(work, struct ks8851_net, tx_check);
+
+	ks->tx_space = ks8851_rdreg16(ks, KS_TXMIR);
+	if (ks->tx_space > ks->tx_len)
+		netif_wake_queue(ks->netdev);
+	else
+		schedule_work(&ks->tx_check);
 }
 
 /**
@@ -826,7 +823,6 @@ static int ks8851_net_open(struct net_device *dev)
 	/* clear then enable interrupts */
 
 #define STD_IRQ (IRQ_LCI |	/* Link Change */	\
-		 IRQ_TXI |	/* TX done */		\
 		 IRQ_RXI |	/* RX done */		\
 		 IRQ_SPIBEI |	/* SPI bus error */	\
 		 IRQ_TXPSI |	/* TX process stop */	\
@@ -842,6 +838,7 @@ static int ks8851_net_open(struct net_device *dev)
 		ks_dbg(ks, "network device %s up\n", dev->name);
 
 	mutex_unlock(&ks->lock);
+	ks8851_write_mac_addr(dev);
 	return 0;
 }
 
@@ -866,6 +863,7 @@ static int ks8851_net_stop(struct net_device *dev)
 
 	/* stop any outstanding work */
 	flush_work(&ks->irq_work);
+	flush_work(&ks->tx_check);
 	flush_work(&ks->tx_work);
 	flush_work(&ks->rxctrl_work);
 
@@ -924,14 +922,16 @@ static netdev_tx_t ks8851_start_xmit(struct sk_buff *skb,
 
 	if (needed > ks->tx_space) {
 		netif_stop_queue(dev);
+		ks->tx_len = needed;
+		schedule_work(&ks->tx_check);
 		ret = NETDEV_TX_BUSY;
 	} else {
 		ks->tx_space -= needed;
 		skb_queue_tail(&ks->txq, skb);
+		schedule_work(&ks->tx_work);
 	}
 
 	spin_unlock(&ks->statelock);
-	schedule_work(&ks->tx_work);
 
 	return ret;
 }
@@ -1241,6 +1241,7 @@ static int __devinit ks8851_probe(struct spi_device *spi)
 	mutex_init(&ks->lock);
 	spin_lock_init(&ks->statelock);
 
+	INIT_WORK(&ks->tx_check, ks8851_tx_check);
 	INIT_WORK(&ks->tx_work, ks8851_tx_work);
 	INIT_WORK(&ks->irq_work, ks8851_irq_work);
 	INIT_WORK(&ks->rxctrl_work, ks8851_rxctrl_work);
@@ -1293,6 +1294,7 @@ static int __devinit ks8851_probe(struct spi_device *spi)
 
 	ks8851_read_selftest(ks);
 	ks8851_init_mac(ks);
+	ks->tx_space = ks8851_rdreg16(ks, KS_TXMIR);
 
 	ret = request_irq(spi->irq, ks8851_irq, IRQF_TRIGGER_LOW,
 			  ndev->name, ks);
