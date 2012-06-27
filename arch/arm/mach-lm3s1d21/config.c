@@ -42,14 +42,9 @@ struct platform_device lm3s_spi_device0 = {
 
 static struct mtd_partition uwic_flash_partitions[] = {
   {
-    .name = "kernel",
-    .size = (1024 * SZ_1K),
-    .offset = 0,
-  },
-  {
-    .name = "cramfs",
+    .name = "root",
     .size = MTDPART_SIZ_FULL,
-    .offset = (1024 * SZ_1K),
+    .offset = 0,
   },
 };
 
