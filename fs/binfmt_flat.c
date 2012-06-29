@@ -548,6 +548,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 				  MAP_PRIVATE|MAP_EXECUTABLE, 0);
 		up_write(&current->mm->mmap_sem);
 		if (!textpos || IS_ERR_VALUE(textpos)) {
+      send_sig(SIGKILL, current, 0);
 			if (!textpos)
 				textpos = (unsigned long) -ENOMEM;
 			printk("Unable to mmap process text, errno %d\n", (int)-textpos);
@@ -563,6 +564,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 		up_write(&current->mm->mmap_sem);
 
 		if (realdatastart == 0 || IS_ERR_VALUE(realdatastart)) {
+      send_sig(SIGKILL, current, 0);
 			if (!realdatastart)
 				realdatastart = (unsigned long) -ENOMEM;
 			printk("Unable to allocate RAM for process data, errno %d\n",
@@ -590,6 +592,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 					data_len + (relocs * sizeof(unsigned long)), &fpos);
 		}
 		if (IS_ERR_VALUE(result)) {
+      send_sig(SIGKILL, current, 0);
 			printk("Unable to read data+bss, errno %d\n", (int)-result);
 			do_munmap(current->mm, textpos, text_len);
 			do_munmap(current->mm, realdatastart, len);
@@ -610,6 +613,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 		up_write(&current->mm->mmap_sem);
 
 		if (!textpos || IS_ERR_VALUE(textpos)) {
+      send_sig(SIGKILL, current, 0);
 			if (!textpos)
 				textpos = (unsigned long) -ENOMEM;
 			printk("Unable to allocate RAM for process text/data, errno %d\n",
@@ -660,6 +664,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 			}
 		}
 		if (IS_ERR_VALUE(result)) {
+      send_sig(SIGKILL, current, 0);
 			printk("Unable to read code+data+bss, errno %d\n",(int)-result);
 			do_munmap(current->mm, textpos, text_len + data_len + extra +
 				MAX_SHARED_LIBS * sizeof(unsigned long));
