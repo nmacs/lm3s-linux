@@ -33,10 +33,9 @@ static void drop_pagecache_sb(struct super_block *sb)
 	iput(toput_inode);
 }
 
-static void drop_pagecache(void)
+void drop_pagecache(void)
 {
 	struct super_block *sb;
-
 	spin_lock(&sb_lock);
 restart:
 	list_for_each_entry(sb, &super_blocks, s_list) {
