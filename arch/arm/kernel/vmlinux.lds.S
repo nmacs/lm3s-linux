@@ -7,7 +7,11 @@
 #include <asm/thread_info.h>
 #include <asm/memory.h>
 #include <asm/page.h>
-	
+
+#ifdef CONFIG_MACH_LM3S1D21
+#  include <mach/lm3s_memorymap.h>
+#endif
+
 OUTPUT_ARCH(arm)
 ENTRY(stext)
 
@@ -72,6 +76,10 @@ SECTIONS
 	/DISCARD/ : {
 		*(.ARM.exidx.exit.text)
 		*(.ARM.extab.exit.text)
+#ifdef CONFIG_MACH_LM3S1D21
+    *(.ARM.exidx.sram.text)
+    *(.ARM.extab.sram.text)
+#endif
 #ifndef CONFIG_HOTPLUG_CPU
 		*(.ARM.exidx.cpuexit.text)
 		*(.ARM.extab.cpuexit.text)
@@ -175,6 +183,22 @@ SECTIONS
 		_edata = .;
 	}
 	_edata_loc = __data_loc + SIZEOF(.data);
+
+#ifdef CONFIG_MACH_LM3S1D21
+  .sram_start : {
+    __sram_lma = .;
+  }
+
+  .sram (LM3S_SRAM_BASE + 1024) : AT(__sram_lma) {
+    __sram_start = .;
+    *(.sram.text)
+    . = ALIGN(4);
+    __sram_end = .;
+  }
+
+  /* Reset the dot pointer or the linker gets confused */
+  . = ADDR(.sram_start) + SIZEOF(.sram);
+#endif
 
 #ifdef CONFIG_HAVE_TCM
         /*
