@@ -108,6 +108,7 @@ static struct cpuidle_driver lm3s_idle_driver = {
 static int __init lm3s_init_cpuidle(void)
 {
   struct cpuidle_device *device;
+  uint32_t regval;
 
   // Enable Deep-Sleep mode
   regval = lm3s_getreg32(0xE000ED10);
