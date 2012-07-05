@@ -62,6 +62,25 @@ SECTIONS
 #endif
 	}
 
+#ifdef CONFIG_MACH_LM3S1D21
+  . = ALIGN(4);
+  .sram_start : {
+    __sram_load_address = .;
+  }
+
+  .sram (LM3S_SRAM_BASE + 4*71) : AT(__sram_load_address) {
+    __sram_start = .;
+    *(.sram.text)
+    . = ALIGN(4);
+    *(.sram.data)
+    . = ALIGN(4);
+    __sram_end = .;
+  }
+
+  /* Reset the dot pointer or the linker gets confused */
+  . = ADDR(.sram_start) + SIZEOF(.sram);
+#endif
+
 	PERCPU(PAGE_SIZE)
 
 #ifndef CONFIG_XIP_KERNEL
@@ -94,7 +113,8 @@ SECTIONS
 #endif
 	}
 
-	.text : {			/* Real text segment		*/
+  __text_loc = .;
+	.text : AT(__text_loc) {			/* Real text segment		*/
 		_text = .;		/* Text and read-only data	*/
 			__exception_text_start = .;
 			*(.exception.text)
@@ -183,22 +203,6 @@ SECTIONS
 		_edata = .;
 	}
 	_edata_loc = __data_loc + SIZEOF(.data);
-
-#ifdef CONFIG_MACH_LM3S1D21
-  .sram_start : {
-    __sram_lma = .;
-  }
-
-  .sram (LM3S_SRAM_BASE + 1024) : AT(__sram_lma) {
-    __sram_start = .;
-    *(.sram.text)
-    . = ALIGN(4);
-    __sram_end = .;
-  }
-
-  /* Reset the dot pointer or the linker gets confused */
-  . = ADDR(.sram_start) + SIZEOF(.sram);
-#endif
 
 #ifdef CONFIG_HAVE_TCM
         /*

@@ -18,7 +18,7 @@
 
 extern void __init lm3s1d21_timer_init();
 
-extern unsigned int __sram_start[], __sram_end[], __sram_lma[];
+extern unsigned int __sram_start[], __sram_end[], __sram_load_address[];
 
 /***************************************************************************/
 
@@ -26,7 +26,7 @@ static void __init init_machine(void)
 {
   uint32_t regval;
 
-  memcpy((unsigned long)__sram_start, (unsigned long)__sram_lma,
+  memcpy((unsigned long)__sram_start, (unsigned long)__sram_load_address,
          (unsigned long)__sram_end - (unsigned long)__sram_start);
 
   regval = SYSCON_DSLPCLKCFG_DSDIVORIDE(0) | SYSCON_DSLPCLKCFG_DSOSCSRC_30KHZ;
