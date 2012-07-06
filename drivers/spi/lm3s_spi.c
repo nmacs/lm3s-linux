@@ -46,6 +46,7 @@
 
 #include <mach/lm3s_spi.h>
 #include <mach/hardware.h>
+#include <mach/sram.h>
 
 /***************************************************************************/
 
@@ -256,7 +257,7 @@ static int lm3s_config(struct spi_lm3s_config *config,
 
 /***************************************************************************/
 
-static void ssi_txnull(struct spi_lm3s_data *priv)
+static void __sram ssi_txnull(struct spi_lm3s_data *priv)
 {
   dev_vdbg(&priv->bitbang.master->dev, "TX: ->0x0000\n");
   ssi_putreg(priv, LM3S_SSI_DR_OFFSET, 0x0000);
@@ -264,7 +265,7 @@ static void ssi_txnull(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
-static void ssi_txuint16(struct spi_lm3s_data *priv)
+static void __sram ssi_txuint16(struct spi_lm3s_data *priv)
 {
   uint16_t *ptr    = (uint16_t*)priv->txbuffer;
   dev_vdbg(&priv->bitbang.master->dev, "TX: %p->%04x\n", ptr, *ptr);
@@ -274,7 +275,7 @@ static void ssi_txuint16(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
-static void ssi_txuint8(struct spi_lm3s_data *priv)
+static void __sram ssi_txuint8(struct spi_lm3s_data *priv)
 {
   uint8_t *ptr   = (uint8_t*)priv->txbuffer;
   dev_vdbg(&priv->bitbang.master->dev, "TX: %p->%02x\n", ptr, *ptr);
@@ -284,7 +285,7 @@ static void ssi_txuint8(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
-static void ssi_rxnull(struct spi_lm3s_data *priv)
+static void __sram ssi_rxnull(struct spi_lm3s_data *priv)
 {
   uint32_t regval  = ssi_getreg(priv, LM3S_SSI_DR_OFFSET);
   dev_vdbg(&priv->bitbang.master->dev, "RX: discard %04x\n", regval);
@@ -292,7 +293,7 @@ static void ssi_rxnull(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
-static void ssi_rxuint16(struct spi_lm3s_data *priv)
+static void __sram ssi_rxuint16(struct spi_lm3s_data *priv)
 {
   uint16_t *ptr    = (uint16_t*)priv->rxbuffer;
   *ptr           = (uint16_t)ssi_getreg(priv, LM3S_SSI_DR_OFFSET);
@@ -302,7 +303,7 @@ static void ssi_rxuint16(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
-static void ssi_rxuint8(struct spi_lm3s_data *priv)
+static void __sram ssi_rxuint8(struct spi_lm3s_data *priv)
 {
   uint8_t *ptr   = (uint8_t*)priv->rxbuffer;
   *ptr           = (uint8_t)ssi_getreg(priv, LM3S_SSI_DR_OFFSET);
@@ -326,7 +327,7 @@ static inline int ssi_rxfifoempty(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
-static int ssi_performtx(struct spi_lm3s_data *priv)
+static int __sram ssi_performtx(struct spi_lm3s_data *priv)
 {
   uint32_t regval;
   int ntxd = 0;  /* Number of words written to Tx FIFO */
@@ -388,7 +389,7 @@ static int ssi_performtx(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
-static inline void ssi_performrx(struct spi_lm3s_data *priv)
+static void __sram ssi_performrx(struct spi_lm3s_data *priv)
 {
   uint32_t regval;
 
@@ -434,7 +435,7 @@ static inline void ssi_performrx(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
-static int spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
+static int __sram spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
 {
   int ntxd;
 
@@ -496,7 +497,7 @@ static irqreturn_t spi_lm3s_isr(int irq, void *dev_id)
 
 /***************************************************************************/
 
-static int spi_lm3s_transfer(struct spi_device *spi,
+static int __sram spi_lm3s_transfer(struct spi_device *spi,
         struct spi_transfer *transfer)
 {
   struct spi_lm3s_data *priv_master = spi_master_get_devdata(spi->master);
