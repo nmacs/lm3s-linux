@@ -113,8 +113,13 @@ SECTIONS
 #endif
 	}
 
-  __text_loc = .;
-	.text : AT(__text_loc) {			/* Real text segment		*/
+#ifdef CONFIG_MACH_LM3S1D21
+	/* Work around linker bug */
+	__text_loc = .;
+	.text : AT(__text_loc) { /* Real text segment */
+#else
+	.text : {			/* Real text segment    */
+#endif
 		_text = .;		/* Text and read-only data	*/
 			__exception_text_start = .;
 			*(.exception.text)
