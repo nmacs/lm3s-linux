@@ -32,22 +32,42 @@ struct lm3s_idle_state
   void (*enter)();
 };
 
-static void enter_idle0()
+static inline void __sram enable_deep_sleep()
 {
-  cpu_do_idle();
+  uint32_t regval;
+  regval = lm3s_getreg32(0xE000ED10);
+  regval |= (1 << 2);
+  lm3s_putreg32(regval, 0xE000ED10);
 }
 
-static void __sram enter_idle1()
+static inline void __sram disable_deep_sleep()
 {
-  uint32_t sdram_cfg;
+  uint32_t regval;
+  regval = lm3s_getreg32(0xE000ED10);
+  regval &= ~(1 << 2);
+  lm3s_putreg32(regval, 0xE000ED10);
+}
 
-  sdram_cfg = lm3s_getreg32(LM3S_EPI0_SDRAMCFG);
-  /* Put SDRAM in self-refresh mode */
-  lm3s_putreg32(sdram_cfg | EPI_SDRAMCFG_SLEEP_ON, LM3S_EPI0_SDRAMCFG);
-  /* Sleep */
-  asm("wfi");
-  /* Restore SDRAM from self-refresh mode */
-  lm3s_putreg32(sdram_cfg, LM3S_EPI0_SDRAMCFG);
+static void __sram cpu_do_sleep()
+{
+  enable_deep_sleep();
+  asm(
+    "ldr r0, =%0\n"     /* r0 = LM3S_EPI0_SDRAMCFG */
+    "ldr r1, [r0]\n"    /* r1 = lm3s_getreg32(r0) */
+    "ldr r2, =%1\n"     /* r2 = EPI_SDRAMCFG_SLEEP_ON */
+    "orr r2, r2, r1\n"  /* r2 |= r1 */
+    "str r2, [r0]\n"    /* lm3s_putreg32(r2, r0) - Put SDRAM in self-refresh mode */
+    "wfi\n"             /* Sleep */
+    "str r1, [r0]\n"    /* lm3s_putreg32(r1, r0) - Restore SDRAM from self-refresh mode */
+    "nop\n"             /* Wait SDRAM is ready */
+    "nop\n"
+    "nop\n"
+    "nop\n"
+  :
+  : "n"(LM3S_EPI0_SDRAMCFG), "n"(EPI_SDRAMCFG_SLEEP_ON)
+  : "r0", "r1", "r2"
+  );
+  disable_deep_sleep();
 }
 
 /* Actual code that puts the SoC in different idle states */
@@ -71,8 +91,8 @@ static int lm3s_enter_idle(struct cpuidle_device *dev,
 
 static struct lm3s_idle_state lm3s_idle_states[LM3S_MAX_STATES] =
 {
-  { .enter = enter_idle0, },
-  { .enter = enter_idle1, },
+  { .enter = cpu_do_idle, },
+  { .enter = cpu_do_sleep, },
 };
 
 struct cpuidle_device lm3s_cpuidle_device =
@@ -109,11 +129,6 @@ static int __init lm3s_init_cpuidle(void)
 {
   struct cpuidle_device *device;
   uint32_t regval;
-
-  // Enable Deep-Sleep mode
-  regval = lm3s_getreg32(0xE000ED10);
-  regval |= (1 << 2);
-  lm3s_putreg32(regval, 0xE000ED10);
 
   cpuidle_register_driver(&lm3s_idle_driver);
 
