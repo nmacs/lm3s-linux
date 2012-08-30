@@ -92,7 +92,7 @@ static int lm3s_enter_idle(struct cpuidle_device *dev,
 static struct lm3s_idle_state lm3s_idle_states[LM3S_MAX_STATES] =
 {
   { .enter = cpu_do_idle, },
-  { .enter = cpu_do_sleep, },
+	{ .enter = cpu_do_idle, },
 };
 
 struct cpuidle_device lm3s_cpuidle_device =
