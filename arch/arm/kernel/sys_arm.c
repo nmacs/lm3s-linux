@@ -108,7 +108,7 @@ asmlinkage int sys_ipc(uint call, int first, int second, int third,
 	}
 
 	case MSGSND:
-		return sys_msgsnd(first, (struct msgbuf __user *) ptr, 
+		return sys_msgsnd(first, (struct msgbuf __user *) ptr,
 				  second, third);
 	case MSGRCV:
 		switch (version) {
@@ -144,7 +144,7 @@ asmlinkage int sys_ipc(uint call, int first, int second, int third,
 		case 1: /* Of course, we don't support iBCS2! */
 			return -EINVAL;
 		}
-	case SHMDT: 
+	case SHMDT:
 		return sys_shmdt ((char __user *)ptr);
 	case SHMGET:
 		return sys_shmget (first, second, third);
@@ -179,6 +179,10 @@ asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
 {
 	if (!newsp)
 		newsp = regs->ARM_sp;
+
+#ifdef CONFIG_CPU_V7M
+	newsp -= 32;
+#endif
 
 	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr, child_tidptr);
 }
