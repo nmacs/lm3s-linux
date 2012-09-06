@@ -44,7 +44,7 @@
 #define TIMER_GPTMTAR_OFFSET      0x048
 
 
-/* SSI register addresses ***********************************************************/
+/* Timer register addresses *********************************************************/
 
 #define LM3S_TIMER_BASE(n)        (LM3S_TIMER0_BASE + (n)*0x01000)
 
@@ -57,7 +57,7 @@
 #define LM3S_TIMER_GPTMTAILR(n)   (LM3S_TIMER_BASE(n) + TIMER_GPTMTAILR_OFFSET)
 #define LM3S_TIMER_GPTMTAR(n)     (LM3S_TIMER_BASE(n) + TIMER_GPTMTAR_OFFSET)
 
-/* SSI register bit defitiions ******************************************************/
+/* Timer register bit defitiions ****************************************************/
 
 /* GPTM Configuration (GPTMCFG), offset 0x000 */
 
