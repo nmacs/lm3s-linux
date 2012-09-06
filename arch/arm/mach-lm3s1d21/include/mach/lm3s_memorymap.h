@@ -78,6 +78,7 @@
 #  define LM3S_DWT_BASE       0xe0001000 /* -0xe0001fff: Data Watchpoint and Trace */
 #  define LM3S_FPB_BASE       0xe0002000 /* -0xe0002fff: Flash Patch and Breakpoint */
                                          /* -0xe000dfff: Reserved */
+#  define LM3S_CM3P_BASE      0xE000E000 /*            : Cortex-M3 Peripherals */
 #  define LM3S_NVIC_BASE      0xe000e000 /* -0xe000efff: Nested Vectored Interrupt Controller */
                                          /* -0xe003ffff: Reserved */
 #  define LM3S_TPIU_BASE      0xe0040000 /* -0xe0040fff: Trace Port Interface Unit */

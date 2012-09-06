@@ -127,6 +127,7 @@
 //#include "lm3s_flash.h"        /* FLASH */
 #include "lm3s_timer.h"          /* Timer */
 #include "lm3s_internal.h"
+#include "lm3s_scb.h"
 
 /************************************************************************************
  * Public Types
