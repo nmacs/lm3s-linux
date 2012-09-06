@@ -34,10 +34,28 @@ __invalid_entry:
 #endif
 	mov	r0, sp
 	bl	__show_regs
+
 1:	b	1b
 ENDPROC(__invalid_entry)
 
+__exception_entry:
+	v7m_exception_entry
+#ifdef CONFIG_ARCH_LM3S1D21
+	mov r0, sp
+	bl lm3s_die
+#else
+	ldr r0, =strex
+	mov r1, sp
+	mov r2, #0
+	bl die
+#endif
+ENDPROC(__exception_entry)
+
 strerr:	.asciz	"\nUnhandled exception: IPSR = %08lx LR = %08lx\n"
+
+#ifndef CONFIG_ARCH_LM3S1D21
+strex: .asciz "MCU exception"
+#endif
 
 	.align	2
 __irq_entry:
@@ -115,10 +133,10 @@ ENTRY(vector_table)
 	.long	0			@ 0 - Reset stack pointer
 	.long	__invalid_entry		@ 1 - Reset
 	.long	__invalid_entry		@ 2 - NMI
-	.long	__invalid_entry		@ 3 - HardFault
-	.long	__invalid_entry		@ 4 - MemManage
-	.long	__invalid_entry		@ 5 - BusFault
-	.long	__invalid_entry		@ 6 - UsageFault
+	.long	__exception_entry		@ 3 - HardFault
+	.long	__exception_entry		@ 4 - MemManage
+	.long	__exception_entry		@ 5 - BusFault
+	.long	__exception_entry		@ 6 - UsageFault
 	.long	__invalid_entry		@ 7 - Reserved
 	.long	__invalid_entry		@ 8 - Reserved
 	.long	__invalid_entry		@ 9 - Reserved
