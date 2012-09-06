@@ -35,17 +35,17 @@ struct lm3s_idle_state
 static inline void __sram enable_deep_sleep()
 {
   uint32_t regval;
-  regval = lm3s_getreg32(0xE000ED10);
-  regval |= (1 << 2);
-  lm3s_putreg32(regval, 0xE000ED10);
+  regval = lm3s_getreg32(LM3S_SCB_SYSCTRL);
+  regval |= SCB_SYSCTRL_SLEEPDEEP_MASK;
+  lm3s_putreg32(regval, LM3S_SCB_SYSCTRL);
 }
 
 static inline void __sram disable_deep_sleep()
 {
   uint32_t regval;
-  regval = lm3s_getreg32(0xE000ED10);
-  regval &= ~(1 << 2);
-  lm3s_putreg32(regval, 0xE000ED10);
+  regval = lm3s_getreg32(LM3S_SCB_SYSCTRL);
+  regval &= ~SCB_SYSCTRL_SLEEPDEEP_MASK;
+  lm3s_putreg32(regval, LM3S_SCB_SYSCTRL);
 }
 
 static void __sram cpu_do_sleep()
