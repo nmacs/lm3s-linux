@@ -20,6 +20,10 @@
 #include <asm/proc-fns.h>
 #include <asm-generic/mm_hooks.h>
 
+#if !defined(CONFIG_MMU) && defined(CONFIG_MPU)
+#include <mach/mpu.h>
+#endif
+
 void __check_kvm_seq(struct mm_struct *mm);
 
 #ifdef CONFIG_CPU_HAS_ASID
@@ -128,6 +132,9 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		if (cache_is_vivt())
 			cpumask_clear_cpu(cpu, mm_cpumask(prev));
 	}
+#elif defined(CONFIG_MPU)
+	if (prev != next)
+		update_protections(next);
 #endif
 }
 

@@ -7,4 +7,10 @@ config MACH_LM3S1D21
 	help
 	  Include support for the Texas Instruments LM3S1D21 platform.
 
+config MPU
+	bool "Enable MPU"
+	default n
+	help
+		Enable MPU support for LM3S controllers
+
 endif

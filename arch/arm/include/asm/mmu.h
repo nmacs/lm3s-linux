@@ -19,6 +19,10 @@ typedef struct {
 
 #else
 
+#ifdef CONFIG_MPU
+#include <mach/mpu.h>
+#endif
+
 /*
  * From nommu.h:
  *  Copyright (C) 2002, David McCullough <davidm@snapgear.com>
@@ -26,6 +30,9 @@ typedef struct {
  */
 typedef struct {
 	unsigned long		end_brk;
+#ifdef CONFIG_MPU
+	struct mpu_state mpu_state;
+#endif
 } mm_context_t;
 
 #endif
