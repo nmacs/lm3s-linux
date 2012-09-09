@@ -36,11 +36,17 @@
 
 #define SCB_INTCTRL_OFFSET      0xD04
 #define SCB_SYSCTRL_OFFSET      0xD10
+#define SCP_FAULTSTAT_OFFSET    0xD28
+#define SCP_HFAULTSTAT_OFFSET   0xD2C
+#define SCP_MMADDR_OFFSET       0xD34
 
 /* SCB register addresses ***********************************************************/
 
 #define LM3S_SCB_INTCTRL          (LM3S_CM3P_BASE + SCB_INTCTRL_OFFSET)
 #define LM3S_SCB_SYSCTRL          (LM3S_CM3P_BASE + SCB_SYSCTRL_OFFSET)
+#define LM3S_SCB_FAULTSTAT        (LM3S_CM3P_BASE + SCP_FAULTSTAT_OFFSET)
+#define LM3S_SCB_HFAULTSTAT       (LM3S_CM3P_BASE + SCP_HFAULTSTAT_OFFSET)
+#define LM3S_SCB_MMADDR           (LM3S_CM3P_BASE + SCP_MMADDR_OFFSET)
 
 /* SCB register bit defitiions ******************************************************/
 
