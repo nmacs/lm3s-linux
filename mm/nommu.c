@@ -595,7 +595,7 @@ static void protect_vma(struct vm_area_struct *vma, unsigned long flags)
 	long start = vma->vm_start & PAGE_MASK;
 	while (start < vma->vm_end) {
 		protect_page(mm, start, flags);
-		start += PAGE_SIZE;
+		start += MPU_PAGE_SIZE;
 	}
 	update_protections(mm);
 #endif
@@ -684,8 +684,6 @@ static void delete_vma_from_mm(struct vm_area_struct *vma)
 
 	kenter("%p", vma);
 
-	protect_vma(vma, 0);
-
 	mm->map_count--;
 	if (mm->mmap_cache == vma)
 		mm->mmap_cache = NULL;
@@ -708,6 +706,7 @@ static void delete_vma_from_mm(struct vm_area_struct *vma)
 		}
 	}
 
+	protect_vma(vma, 0);
 	vma->vm_mm = NULL;
 }
 

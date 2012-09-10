@@ -10,7 +10,6 @@
 struct mpu_state
 {
 	uint32_t mpu_attr_regs[MPU_REGIONS_COUNT];
-	int ref_count[MPU_REGIONS_COUNT * MPU_SUBREGIONS_COUNT];
 };
 
 void update_protections(struct mm_struct *mm);

@@ -24,6 +24,52 @@
 #define MPU_REGION_SIZE_POW2    (DRAM_SIZE_POW2 - 3)
 #define MPU_SUBREGION_SIZE_POW2 (MPU_REGION_SIZE_POW2 - 3)
 
+/* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
+struct vm_area_struct *mmap_find_vma(struct mm_struct *mm, unsigned long addr)
+{
+	struct vm_area_struct *vma = NULL;
+	if (mm) {
+		/* Check the cache first. */
+		/* (Cache hit rate is typically around 35%.) */
+		vma = mm->mmap_cache;
+		if (!(vma && vma->vm_end > addr && vma->vm_start <= addr)) {
+			struct rb_node * rb_node;
+
+			rb_node = mm->mm_rb.rb_node;
+			vma = NULL;
+
+			while (rb_node) {
+				struct vm_area_struct * vma_tmp;
+
+				vma_tmp = rb_entry(rb_node,
+						struct vm_area_struct, vm_rb);
+
+				if (vma_tmp->vm_end > addr) {
+					vma = vma_tmp;
+					if (vma_tmp->vm_start <= addr)
+						break;
+					rb_node = rb_node->rb_left;
+				} else
+					rb_node = rb_node->rb_right;
+			}
+			if (vma)
+				mm->mmap_cache = vma;
+		}
+	}
+	return vma;
+}
+
+/* Look up the first VMA which intersects the interval start_addr..end_addr-1,
+   NULL if none.  Assume start_addr < end_addr. */
+static inline struct vm_area_struct * mmap_find_vma_intersection(struct mm_struct * mm, unsigned long start_addr, unsigned long end_addr)
+{
+	struct vm_area_struct * vma = mmap_find_vma(mm,start_addr);
+
+	if (vma && end_addr <= vma->vm_start)
+		vma = NULL;
+	return vma;
+}
+
 void protect_page(struct mm_struct *mm, unsigned long addr, unsigned long flags)
 {
 	unsigned long offset;
@@ -32,7 +78,6 @@ void protect_page(struct mm_struct *mm, unsigned long addr, unsigned long flags)
 	unsigned long subregion;
 	unsigned long page_subregion;
 	uint32_t *mpu_attr_regs;
-	int *ref_count;
 
 	if (addr >= (CONFIG_DRAM_BASE + CONFIG_DRAM_SIZE) || addr < CONFIG_DRAM_BASE)
 		return;
@@ -40,26 +85,23 @@ void protect_page(struct mm_struct *mm, unsigned long addr, unsigned long flags)
 	offset = addr - CONFIG_DRAM_BASE;
 	page = offset >> MPU_REGION_SIZE_POW2;
 	subregion = offset >> MPU_SUBREGION_SIZE_POW2;
-	page_subregion = (offset & ((1 << MPU_REGION_SIZE_POW2) - 1)) >> MPU_SUBREGION_SIZE_POW2;
+	page_subregion = (offset & (MPU_REGION_SIZE - 1)) >> MPU_SUBREGION_SIZE_POW2;
 	bit = 1 << (page_subregion + MPU_ATTR_SRD_SHIFT);
 
-	printk("---------- protect_page 0x%X [flags %i, bit 0x%X]\n",
-				 addr, flags, bit);
-	printk("offset 0x%X, page %i, page_subregion %i, subregion %i\n",
-				 offset, page, page_subregion, subregion);
-
 	mpu_attr_regs = mm->context.mpu_state.mpu_attr_regs;
-	ref_count = mm->context.mpu_state.ref_count;
 
 	if (flags != 0)
 	{
-		if (ref_count[subregion]++ == 0)
-			mpu_attr_regs[page] |= bit; // Enable Sub Region
+		mpu_attr_regs[page] |= bit; // Enable Sub Region
 	}
 	else
 	{
-		if (--ref_count[subregion] == 0)
+		unsigned long subregion_start = (subregion << MPU_SUBREGION_SIZE_POW2) + CONFIG_DRAM_BASE;
+		unsigned long subregion_end = subregion_start + MPU_SUBREGION_SIZE;
+		if (!mmap_find_vma_intersection(mm, subregion_start, subregion_end))
+		{
 			mpu_attr_regs[page] &= ~bit; // Disable Sub Region
+		}
 	}
 }
 
@@ -76,8 +118,8 @@ void update_protections(struct mm_struct *mm)
 		regval &= ~MPU_ATTR_SRD_MASK;
 		regval |= (~(mpu_attr_regs[i])) & MPU_ATTR_SRD_MASK;
 		lm3s_putreg32(regval, LM3S_MPU_ATTR);
-		asm("dsb":::);
 	}
+	asm("dsb":::);
 }
 
 /* Initialize Memory Protection Unit */
@@ -88,6 +130,7 @@ static int __init lm3s_init_mpu(void)
 	lm3s_putreg32(MPU_CTRL_ENABLE_MASK | MPU_CTRL_PRIVDEFEN_MASK, LM3S_MPU_CTRL);
 	asm("dsb":::);
 	int i;
+
 	for (i = 0; i < MPU_REGIONS_COUNT; i++)
 	{
 		lm3s_putreg32(i, LM3S_MPU_NUMBER);
