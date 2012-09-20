@@ -355,7 +355,7 @@ static void lm3s_set_termios(struct uart_port *port, struct ktermios *termios,
   /* Write configuration */
   lm3s_putreg32(brdi, port->membase + LM3S_UART_IBRD_OFFSET);
   lm3s_putreg32(divfrac, port->membase + LM3S_UART_FBRD_OFFSET);
-  lm3s_putreg32(lcrh, port->membase + LM3S_UART_CTL_OFFSET);
+  lm3s_putreg32(lcrh, port->membase + LM3S_UART_LCRH_OFFSET);
   lm3s_putreg32(ctl, port->membase + LM3S_UART_CTL_OFFSET);
 
   spin_unlock_irqrestore(&port->lock, flags);
