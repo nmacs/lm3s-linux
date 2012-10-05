@@ -29,6 +29,11 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode, const char *cmd)
 {
+	unsigned long *paircr = (unsigned long *) 0xE000ED0C;
+
+	asm volatile ("dsb");
+	*paircr = (*paircr & (7 << 8)) | 1 << 2 | 0x5FA << 16;
+	asm volatile ("dsb");
 }
 
 #endif
