@@ -42,7 +42,7 @@ static void __init init_irq(void)
 
 /***************************************************************************/
 
-static struct sys_timer __initdata timer = {
+static struct sys_timer timer = {
   .init   = lm3s1d21_timer_init,
 };
 

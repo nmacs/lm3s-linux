@@ -62,7 +62,7 @@ static struct spi_eeprom uwic_eeprom_chip = {
   .flags    = EE_ADDR2,
 };
 
-static struct spi_board_info uwic_spi_board_info[] __initdata = {
+static struct spi_board_info uwic_spi_board_info[] = {
   {
     .modalias      = "m25p80",
     .max_speed_hz  = 5 * 1000000,
@@ -115,7 +115,7 @@ static struct platform_device uart_device = {
 
 /***************************************************************************/
 
-static struct platform_device *lm3s_devices[] __initdata = {
+static struct platform_device *lm3s_devices[] = {
   &uart_device,
   &lm3s_spi_device0,
 };
