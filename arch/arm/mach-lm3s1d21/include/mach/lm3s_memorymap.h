@@ -361,6 +361,7 @@
 
 #  define LM3S_WDOG0_BASE     (LM3S_PERIPH_BASE + 0x00000) /* -0x00fff: Watchdog Timer 0 */
 #  define LM3S_WDOG1_BASE     (LM3S_PERIPH_BASE + 0x01000) /* -0x01fff: Watchdog Timer 1 */
+#  define LM3S_WDOG_BASE(n)   (LM3S_WDOG0_BASE + (n) * 0x1000)
                                                            /* -0x03fff: Reserved */
 #  define LM3S_GPIOA_BASE     (LM3S_PERIPH_BASE + 0x04000) /* -0x04fff: GPIO Port A */
 #  define LM3S_GPIOB_BASE     (LM3S_PERIPH_BASE + 0x05000) /* -0x05fff: GPIO Port B */

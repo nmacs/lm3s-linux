@@ -145,6 +145,14 @@ config KS8695_WATCHDOG
 	  Watchdog timer embedded into KS8695 processor. This will reboot your
 	  system when the timeout is reached.
 
+config LM3S_WATCHDOG
+	tristate "LM3S watchdog"
+	depends on ARCH_LM3S1D21
+	select WATCHDOG_NOWAYOUT
+	help
+	  Watchdog timer embedded into LM3S processor. This will reboot your
+	  system when the timeout is reached.
+
 config S3C2410_WATCHDOG
 	tristate "S3C2410 Watchdog"
 	depends on ARCH_S3C2410

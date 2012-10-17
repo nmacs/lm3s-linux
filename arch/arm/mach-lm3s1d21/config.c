@@ -115,9 +115,18 @@ static struct platform_device uart_device = {
 
 /***************************************************************************/
 
+static struct platform_device wdt_device = {
+	.name		= "lm3s_wdt",
+	.id		= -1,
+	.num_resources	= 0,
+};
+
+/***************************************************************************/
+
 static struct platform_device *lm3s_devices[] = {
   &uart_device,
   &lm3s_spi_device0,
+	&wdt_device,
 };
 
 /***************************************************************************/
