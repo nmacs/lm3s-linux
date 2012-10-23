@@ -211,7 +211,7 @@ static int __devinit lm3s_wdt_probe(struct platform_device *pdev)
 	if (res)
 		return res;
 
-	printk(KERN_INFO "LM3S Watchdog Timer enabled (%d seconds%s), nowayout\n");
+	printk(KERN_INFO "LM3S Watchdog Timer enabled (%d seconds), nowayout\n");
 	return 0;
 }
 
