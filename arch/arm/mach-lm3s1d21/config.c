@@ -11,6 +11,10 @@
 
 #include <mach/lm3s_spi.h>
 
+#ifdef CONFIG_LEDS_LM3S
+#include <mach/leds.h>
+#endif
+
 /***************************************************************************/
 
 static struct resource lm3s_spi_resources0[] = {
@@ -123,10 +127,32 @@ static struct platform_device wdt_device = {
 
 /***************************************************************************/
 
+#ifdef CONFIG_LEDS_LM3S
+static struct lm3s_led_platdata cpu_led_pdata = {
+	.name           = "cpu-led",
+	.gpio           = GPIO_CPU_LED,
+	.flags          = 0,
+	.def_trigger    = "heartbeat",
+};
+
+static struct platform_device cpu_led = {
+	.name	= "lm3s-led",
+	.id		= 1,
+	.dev		= {
+		.platform_data  = &cpu_led_pdata,
+	},
+};
+#endif
+
+/***************************************************************************/
+
 static struct platform_device *lm3s_devices[] = {
   &uart_device,
   &lm3s_spi_device0,
 	&wdt_device,
+#ifdef CONFIG_LEDS_LM3S
+	&cpu_led,
+#endif
 };
 
 /***************************************************************************/
