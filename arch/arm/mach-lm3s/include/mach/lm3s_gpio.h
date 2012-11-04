@@ -425,6 +425,8 @@ void lm3s_gpiowrite(uint32_t pinset, int value);
 
 int lm3s_gpioread(uint32_t pinset, int value);
 
+void lm3s_gpioirqenable(uint32_t pinset);
+
 #endif
 
 #endif /* __ARCH_ARM_SRC_LM3S_LM3S_GPIO_H */

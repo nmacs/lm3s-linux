@@ -8,12 +8,20 @@
 #include <linux/spi/eeprom.h>
 #include <linux/spi/flash.h>
 #include <linux/mtd/partitions.h>
-
 #include <mach/lm3s_spi.h>
-
 #ifdef CONFIG_LEDS_LM3S
 #include <mach/leds.h>
 #endif
+#include <mach/memory.h>
+#include <mach/irqs.h>
+#include <mach/lm3s_gpio.h>
+#include <mach/lm3s_clock.h>
+#include <asm/mach-types.h>
+#include <asm/hardware/nvic.h>
+#include <asm/mach/arch.h>
+#include <asm/mach/map.h>
+#include <asm/mach/time.h>
+#include <asm/mach/irq.h>
 
 /***************************************************************************/
 
@@ -157,15 +165,58 @@ static struct platform_device *lm3s_devices[] = {
 
 /***************************************************************************/
 
-extern void lm3s_gpioirqenable(uint32_t pinset);
+#ifdef CONFIG_LM3S_COPY_TO_SRAM
+extern unsigned int __sram_start[], __sram_end[], __sram_load_address[];
+#endif
 
-static int __init init_lm3s1d21(void)
+/***************************************************************************/
+
+static void __init uwic_init(void)
 {
-  platform_add_devices(lm3s_devices, ARRAY_SIZE(lm3s_devices));
-  spi_register_board_info(uwic_spi_board_info, ARRAY_SIZE(uwic_spi_board_info));
+	uint32_t regval;
 
-  lm3s_gpioirqenable(GPIO_ETH_INTRN);
+#ifdef CONFIG_LM3S_COPY_TO_SRAM
+	memcpy(__sram_start, __sram_load_address,
+	       (unsigned long)__sram_end - (unsigned long)__sram_start);
+#endif
 
-  return 0;
+	regval = SYSCON_DSLPCLKCFG_DSDIVORIDE(0) | SYSCON_DSLPCLKCFG_DSOSCSRC_30KHZ;
+	lm3s_putreg32(regval, LM3S_SYSCON_DSLPCLKCFG);
+
+	platform_add_devices(lm3s_devices, ARRAY_SIZE(lm3s_devices));
+	spi_register_board_info(uwic_spi_board_info, ARRAY_SIZE(uwic_spi_board_info));
+
+	lm3s_gpioirqenable(GPIO_ETH_INTRN);
 }
-arch_initcall(init_lm3s1d21);
+
+/***************************************************************************/
+
+static void __init uwic_init_irq(void)
+{
+  nvic_init();
+}
+
+/***************************************************************************/
+
+static struct sys_timer timer = {
+  .init   = lm3s1d21_timer_init,
+};
+
+/***************************************************************************/
+
+static void __init uwic_map_io(void)
+{
+}
+
+/***************************************************************************/
+/***************************************************************************/
+
+MACHINE_START(UWIC, "Elster uWIC")
+  .phys_io  = LM3S_PERIPH_BASE,
+  .io_pg_offst  = (IO_ADDRESS(0) >> 18) & 0xfffc,
+  .boot_params  = PHYS_OFFSET + 0x100,
+  .map_io   = uwic_map_io,
+  .init_irq = uwic_init_irq,
+  .timer    = &timer,
+  .init_machine = uwic_init,
+MACHINE_END

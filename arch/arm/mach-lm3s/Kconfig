@@ -1,0 +1,48 @@
+if ARCH_LM3SXXXX
+
+menu "Texas Instruments LM3S System-on-Chip"
+
+choice
+	prompt "Texas Instruments LM3SXXXX Processor"
+
+config ARCH_LM3S1D21
+	bool "LM3S1D21"
+	select CPU_V7M
+	select ARM_NVIC
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  Include support for the Texas Instruments ARCH_LM3S1D21 MCU.
+
+endchoice
+
+if ARCH_LM3S1D21
+comment "LM3S1D21 Board Type"
+
+config MACH_UWIC
+	bool "Elster uWIC Board"
+	help
+	  Enables Elster uWIC Board.
+
+endif
+
+config MPU
+	bool "Enable MPU"
+	default n
+	help
+	  Enable MPU support for LM3S controllers
+
+config LM3S_COPY_TO_SRAM
+	bool "Copy some code and data to SRAM"
+	default n
+
+config LM3S_COPY_TO_SRAM_SIZE
+	int "SRAM region size"
+	default 1024
+	depends on LM3S_COPY_TO_SRAM
+
+endmenu
+
+endif

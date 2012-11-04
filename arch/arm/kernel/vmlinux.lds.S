@@ -8,7 +8,7 @@
 #include <asm/memory.h>
 #include <asm/page.h>
 
-#ifdef CONFIG_MACH_LM3S1D21
+#ifdef CONFIG_ARCH_LM3S1D21
 #  include <mach/lm3s_memorymap.h>
 #endif
 
@@ -62,7 +62,7 @@ SECTIONS
 #endif
 	}
 
-#ifdef CONFIG_MACH_LM3S1D21
+#ifdef CONFIG_LM3S_COPY_TO_SRAM
   . = ALIGN(4);
   .sram_start : {
     __sram_load_address = .;
@@ -95,7 +95,7 @@ SECTIONS
 	/DISCARD/ : {
 		*(.ARM.exidx.exit.text)
 		*(.ARM.extab.exit.text)
-#ifdef CONFIG_MACH_LM3S1D21
+#ifdef CONFIG_ARCH_LM3S1D21
     *(.ARM.exidx.sram.text)
     *(.ARM.extab.sram.text)
 #endif
@@ -113,7 +113,7 @@ SECTIONS
 #endif
 	}
 
-#ifdef CONFIG_MACH_LM3S1D21
+#ifdef CONFIG_ARCH_LM3S1D21
 	/* Work around linker bug */
 	__text_loc = .;
 	.text : AT(__text_loc) { /* Real text segment */

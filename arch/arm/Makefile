@@ -118,7 +118,7 @@ endif
 
 # Machine directory name.  This list is sorted alphanumerically
 # by CONFIG_* macro name.
-machine-$(CONFIG_ARCH_LM3S1D21)         := lm3s1d21
+machine-$(CONFIG_ARCH_LM3SXXXX)		:= lm3s
 machine-$(CONFIG_ARCH_AAEC2000)		:= aaec2000
 machine-$(CONFIG_ARCH_AT91)		:= at91
 machine-$(CONFIG_ARCH_BCMRING)		:= bcmring

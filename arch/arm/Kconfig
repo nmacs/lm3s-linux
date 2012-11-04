@@ -192,14 +192,10 @@ choice
 	prompt "ARM system type"
 	default ARCH_VERSATILE
 
-config ARCH_LM3S1D21
-  bool "Texas Instruments LM3S1D21"
-  select HAVE_CLK
-  select COMMON_CLKDEV
-  select GENERIC_TIME
-  select GENERIC_CLOCKEVENTS
-  help
-    This enables support for systems based on the LM3S1D21 MCUs
+config ARCH_LM3SXXXX
+	bool "Texas Instruments LM3SXXXX"
+	help
+	  This enables support for systems based on the LM3S1D21 MCUs
 
 config ARCH_AAEC2000
 	bool "Agilent AAEC-2000 based"
@@ -858,7 +854,7 @@ source "arch/arm/mach-w90x900/Kconfig"
 
 source "arch/arm/mach-mps/Kconfig"
 
-source "arch/arm/mach-lm3s1d21/Kconfig"
+source "arch/arm/mach-lm3s/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN

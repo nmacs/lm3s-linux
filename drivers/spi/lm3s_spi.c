@@ -127,7 +127,7 @@ static void ssi_enable(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
-static void enable_ssi_clock()
+static void enable_ssi_clock(void)
 {
   uint32_t regval;
   regval = lm3s_getreg32(LM3S_SYSCON_RCGC1);
@@ -137,7 +137,7 @@ static void enable_ssi_clock()
 
 /***************************************************************************/
 
-static void disable_ssi_clock()
+static void disable_ssi_clock(void)
 {
   uint32_t regval;
   regval = lm3s_getreg32(LM3S_SYSCON_RCGC1);
@@ -178,7 +178,6 @@ static void ssi_setfrequency(struct spi_lm3s_config *config, uint32_t frequency)
   uint32_t maxdvsr;
   uint32_t cpsdvsr;
   uint32_t scr;
-  uint32_t regval;
 
   /* "The serial bit rate is derived by dividing down the input clock
    *  (FSysClk). The clock is first divided by an even prescale value
@@ -329,7 +328,9 @@ static inline int ssi_rxfifoempty(struct spi_lm3s_data *priv)
 
 static int __sram ssi_performtx(struct spi_lm3s_data *priv)
 {
+#ifndef POLLING_MODE
   uint32_t regval;
+#endif
   int ntxd = 0;  /* Number of words written to Tx FIFO */
 
   /* Check if the Tx FIFO is full */
@@ -391,7 +392,9 @@ static int __sram ssi_performtx(struct spi_lm3s_data *priv)
 
 static void __sram ssi_performrx(struct spi_lm3s_data *priv)
 {
+#ifndef POLLING_MODE
   uint32_t regval;
+#endif
 
   /* Loop while data is available in the Rx FIFO */
   while (!ssi_rxfifoempty(priv))
@@ -503,7 +506,7 @@ static int __sram spi_lm3s_transfer(struct spi_device *spi,
   struct spi_lm3s_data *priv_master = spi_master_get_devdata(spi->master);
   struct spi_lm3s_config *dev_priv = spi_get_ctldata(spi);
 
-  dev_dbg(&spi->dev, "%s: tx_buf 0x%X, rx_buf 0x%X, len %u, cr0 0x%X, cpsdvsr 0x%X\n", __func__,
+  dev_dbg(&spi->dev, "%s: tx_buf %p, rx_buf %p, len %u, cr0 0x%x, cpsdvsr 0x%x\n", __func__,
      transfer->tx_buf, transfer->rx_buf, transfer->len,
      dev_priv->cr0, dev_priv->cpsdvsr);
 
@@ -592,7 +595,6 @@ static int spi_lm3s_setupxfer(struct spi_device *spi,
 
 static void spi_lm3s_chipselect(struct spi_device *spi, int is_active)
 {
-  struct spi_lm3s_data *priv_master = spi_master_get_devdata(spi->master);
   struct spi_lm3s_config *priv_dev = spi_get_ctldata(spi);
 
   int active = is_active != BITBANG_CS_INACTIVE;
@@ -600,24 +602,26 @@ static void spi_lm3s_chipselect(struct spi_device *spi, int is_active)
   int value = dev_is_lowactive ^ active;
 
   dev_dbg(&spi->dev, "%s: cs %i [0x%X], value %i\n", __func__,
-          spi->chip_select, priv_dev->gpio_chipselect, dev_is_lowactive ^ active);
+          spi->chip_select, priv_dev->gpio_chipselect, value);
 
-  lm3s_gpiowrite(priv_dev->gpio_chipselect, dev_is_lowactive ^ active);
+  lm3s_gpiowrite(priv_dev->gpio_chipselect, value);
 }
 
 /***************************************************************************/
 
 static int spi_lm3s_setup(struct spi_device *spi)
 {
+	struct spi_lm3s_config *priv_dev;
+	struct spi_lm3s_data *priv_master;
+
   if( spi->chip_select >= spi->master->num_chipselect )
     return -EINVAL;
 
-  struct spi_lm3s_config *priv_dev =
-    kmalloc(sizeof(struct spi_lm3s_config), GFP_KERNEL);
+  priv_dev = kmalloc(sizeof(struct spi_lm3s_config), GFP_KERNEL);
   if( priv_dev == 0 )
     return -ENOMEM;
 
-  struct spi_lm3s_data *priv_master = spi_master_get_devdata(spi->master);
+  priv_master = spi_master_get_devdata(spi->master);
 
   spi_set_ctldata(spi, priv_dev);
 
@@ -756,6 +760,8 @@ static int __devexit spi_lm3s_remove(struct platform_device *pdev)
   release_mem_region(res->start, resource_size(res));
 
   platform_set_drvdata(pdev, NULL);
+
+	disable_ssi_clock();
 
   return 0;
 }
