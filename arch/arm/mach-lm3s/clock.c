@@ -98,6 +98,9 @@ static void timer_set_mode(enum clock_event_mode mode,
     lm3s_putreg32(TIMER_GPTMTAMR_TAMR_ONESHOT, LM3S_TIMER_GPTMTAMR(0));
 
     break;
+	case CLOCK_EVT_MODE_RESUME:
+		printk(KERN_DEBUG "%s\n", "\tCLOCK_EVT_MODE_RESUME");
+		break;
   case CLOCK_EVT_MODE_UNUSED:
     printk(KERN_DEBUG "%s\n", "\tCLOCK_EVT_MODE_UNUSED");
     break;
