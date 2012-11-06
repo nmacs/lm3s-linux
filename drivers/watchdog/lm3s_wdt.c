@@ -36,10 +36,11 @@ MODULE_PARM_DESC(wdt_time, "Watchdog time in seconds. (default="
 					__MODULE_STRING(WDT_DEFAULT_TIME) ")");
 
 static unsigned long lm3s_wdt_busy;
+static spinlock_t lm3s_lock;
 
 /* ......................................................................... */
 
-static inline void lm3s_wdt_unlock(void)
+static inline void _wdt_unlock(void)
 {
 	lm3s_putreg32(WATCHDOG_WDTLOCK_MAGIC, LM3S_WATCHDOG_WDTLOCK(CURRENT_WDT));
 }
@@ -49,7 +50,9 @@ static inline void lm3s_wdt_unlock(void)
  */
 static inline void lm3s_wdt_reload(void)
 {
+	spin_lock(&lm3s_lock);
 	lm3s_putreg32(1, LM3S_WATCHDOG_WDTICR(CURRENT_WDT));
+	spin_unlock(&lm3s_lock);
 }
 
 /*
@@ -57,9 +60,12 @@ static inline void lm3s_wdt_reload(void)
  */
 static inline void lm3s_wdt_stop(void)
 {
-	uint32_t regval = lm3s_getreg32(LM3S_SYSCON_RCGC0);
+	uint32_t regval;
+	spin_lock(&lm3s_lock);
+	regval = lm3s_getreg32(LM3S_SYSCON_RCGC0);
 	regval &= ~SYSCON_RCGC0_WDT;
 	lm3s_putreg32(regval, LM3S_SYSCON_RCGC0);
+	spin_unlock(&lm3s_lock);
 }
 
 /*
@@ -67,12 +73,15 @@ static inline void lm3s_wdt_stop(void)
  */
 static inline void lm3s_wdt_start(void)
 {
+	uint32_t regval;
 	uint32_t tval = wdt_time * (CLOCK_TICK_RATE / 2);
-	uint32_t regval = lm3s_getreg32(LM3S_SYSCON_RCGC0);
+
+	spin_lock(&lm3s_lock);
+	regval = lm3s_getreg32(LM3S_SYSCON_RCGC0);
 	regval |= SYSCON_RCGC0_WDT;
 	lm3s_putreg32(regval, LM3S_SYSCON_RCGC0);
 
-	lm3s_wdt_unlock();
+	_wdt_unlock();
 
 	lm3s_putreg32(tval, LM3S_WATCHDOG_WDTLOAD(CURRENT_WDT));
 	lm3s_wdt_reload();
@@ -82,6 +91,7 @@ static inline void lm3s_wdt_start(void)
 	lm3s_putreg32(regval, LM3S_WATCHDOG_WDTCTL(CURRENT_WDT));
 	regval |= WATCHDOG_WDTCTL_INTEN_MASK;
 	lm3s_putreg32(regval, LM3S_WATCHDOG_WDTCTL(CURRENT_WDT));
+	spin_unlock(&lm3s_lock);
 }
 
 /*
@@ -211,7 +221,7 @@ static int __devinit lm3s_wdt_probe(struct platform_device *pdev)
 	if (res)
 		return res;
 
-	printk(KERN_INFO "LM3S Watchdog Timer enabled (%d seconds), nowayout\n");
+	printk(KERN_INFO "LM3S Watchdog Timer enabled (%d seconds), nowayout\n", wdt_time);
 	return 0;
 }
 
@@ -265,6 +275,7 @@ static struct platform_driver lm3s_wdt_driver = {
 
 static int __init lm3s_wdt_init(void)
 {
+	spin_lock_init(&lm3s_lock);
 	/* Check that the heartbeat value is within range;
 	   if not reset to the default */
 	if (lm3s_wdt_settimeout(wdt_time)) {
