@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/cpuidle.h>
 #include <asm/proc-fns.h>
+#include <asm/cpu-single.h>
 #include <linux/io.h>
 #include <mach/hardware.h>
 #include <mach/sram.h>
@@ -29,10 +30,10 @@
 
 struct lm3s_idle_state
 {
-  void (*enter)();
+  int (*enter)(void);
 };
 
-static inline void __sram enable_deep_sleep()
+static inline void __sram enable_deep_sleep(void)
 {
   uint32_t regval;
   regval = lm3s_getreg32(LM3S_SCB_SYSCTRL);
@@ -40,7 +41,7 @@ static inline void __sram enable_deep_sleep()
   lm3s_putreg32(regval, LM3S_SCB_SYSCTRL);
 }
 
-static inline void __sram disable_deep_sleep()
+static inline void __sram disable_deep_sleep(void)
 {
   uint32_t regval;
   regval = lm3s_getreg32(LM3S_SCB_SYSCTRL);
@@ -48,7 +49,8 @@ static inline void __sram disable_deep_sleep()
   lm3s_putreg32(regval, LM3S_SCB_SYSCTRL);
 }
 
-static void __sram cpu_do_sleep()
+#if 0
+static int __sram cpu_do_sleep(void)
 {
   enable_deep_sleep();
   asm(
@@ -68,7 +70,9 @@ static void __sram cpu_do_sleep()
   : "r0", "r1", "r2"
   );
   disable_deep_sleep();
+  return 0;
 }
+#endif
 
 /* Actual code that puts the SoC in different idle states */
 static int lm3s_enter_idle(struct cpuidle_device *dev,
@@ -91,8 +95,8 @@ static int lm3s_enter_idle(struct cpuidle_device *dev,
 
 static struct lm3s_idle_state lm3s_idle_states[LM3S_MAX_STATES] =
 {
-  { .enter = cpu_do_idle, },
-	{ .enter = cpu_do_idle, },
+  { .enter = cpu_do_idle },
+	{ .enter = cpu_do_idle },
 };
 
 struct cpuidle_device lm3s_cpuidle_device =
@@ -127,9 +131,6 @@ static struct cpuidle_driver lm3s_idle_driver = {
 /* Initialize CPU idle by registering the idle states */
 static int __init lm3s_init_cpuidle(void)
 {
-  struct cpuidle_device *device;
-  uint32_t regval;
-
   cpuidle_register_driver(&lm3s_idle_driver);
 
   if (cpuidle_register_device(&lm3s_cpuidle_device)) {
