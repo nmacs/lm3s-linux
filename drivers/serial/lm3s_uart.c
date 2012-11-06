@@ -208,7 +208,6 @@ static void lm3s_enable_ms(struct uart_port *port)
 static int lm3s_startup(struct uart_port *port)
 {
   unsigned long flags;
-  uint32_t regval;
 
   dev_dbg(port->dev, "%s\n", __func__);
 
