@@ -83,8 +83,6 @@ void __init nvic_init(void)
   for (i = 0; i < max_irq / 32; i++)
     writel(~0, NVIC_CLEAR_ENABLE + i * 4);
 #else
-  unsigned int regval;
-
   max_irq = NR_IRQS;
 
   writel(~0, NVIC_CLEAR_ENABLE);
