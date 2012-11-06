@@ -107,9 +107,9 @@ void protect_page(struct mm_struct *mm, unsigned long addr, unsigned long flags)
 
 void update_protections(struct mm_struct *mm)
 {
+	int i;
 	uint32_t *mpu_attr_regs = mm->context.mpu_state.mpu_attr_regs;
 	asm("isb":::);
-	int i;
 	for (i = 0; i < MPU_REGIONS_COUNT; i++)
 	{
 		uint32_t regval;
@@ -125,11 +125,11 @@ void update_protections(struct mm_struct *mm)
 /* Initialize Memory Protection Unit */
 static int __init lm3s_init_mpu(void)
 {
+	int i;
 	uint32_t base = CONFIG_DRAM_BASE;
 	/* Enable MPU and allow access for privilaged code for all address space */
 	lm3s_putreg32(MPU_CTRL_ENABLE_MASK | MPU_CTRL_PRIVDEFEN_MASK, LM3S_MPU_CTRL);
 	asm("dsb":::);
-	int i;
 
 	for (i = 0; i < MPU_REGIONS_COUNT; i++)
 	{
