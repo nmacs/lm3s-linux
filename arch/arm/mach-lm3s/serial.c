@@ -45,7 +45,7 @@ void lm3s_uart_puts(uint32_t uart_base, const char *s)
 void printascii(const char *str)
 {
 #ifdef LM3S_EARLY_CONSOLE_BASE
-  lm3s_uart_putc(LM3S_EARLY_CONSOLE_BASE, str);
+  lm3s_uart_puts(LM3S_EARLY_CONSOLE_BASE, str);
 #endif
 }
 
