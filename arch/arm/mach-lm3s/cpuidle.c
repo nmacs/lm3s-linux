@@ -24,9 +24,14 @@
 #include <mach/hardware.h>
 #include <mach/sram.h>
 #include <linux/delay.h>
+#include <linux/leds.h>
 
 #define LM3S_MAX_STATES 2
 #define DRIVER_NAME "lm3s-idle"
+
+#ifdef CONFIG_LEDS_TRIGGER_CPUIDLE
+DEFINE_LED_TRIGGER(cpuidle_led_trigger);
+#endif
 
 struct lm3s_idle_state
 {
@@ -49,10 +54,9 @@ static inline void __sram disable_deep_sleep(void)
   lm3s_putreg32(regval, LM3S_SCB_SYSCTRL);
 }
 
-#if 0
 static int __sram cpu_do_sleep(void)
 {
-  enable_deep_sleep();
+  //enable_deep_sleep();
   asm(
     "ldr r0, =%0\n"     /* r0 = LM3S_EPI0_SDRAMCFG */
     "ldr r1, [r0]\n"    /* r1 = lm3s_getreg32(r0) */
@@ -69,63 +73,71 @@ static int __sram cpu_do_sleep(void)
   : "n"(LM3S_EPI0_SDRAMCFG), "n"(EPI_SDRAMCFG_SLEEP_ON)
   : "r0", "r1", "r2"
   );
-  disable_deep_sleep();
+
+  //disable_deep_sleep();
   return 0;
 }
-#endif
 
 /* Actual code that puts the SoC in different idle states */
 static int lm3s_enter_idle(struct cpuidle_device *dev,
              struct cpuidle_state *state)
 {
-  struct timeval before, after;
-  int idle_time;
-  struct lm3s_idle_state *lm3s_state = state->driver_data;
+	struct timeval before, after;
+	int idle_time;
+	struct lm3s_idle_state *lm3s_state = state->driver_data;
 
-  local_irq_disable();
-  do_gettimeofday(&before);
-  lm3s_state->enter();
-  do_gettimeofday(&after);
-  local_irq_enable();
-  idle_time = (after.tv_sec - before.tv_sec) * USEC_PER_SEC +
-      (after.tv_usec - before.tv_usec);
+#ifdef CONFIG_LEDS_TRIGGER_CPUIDLE
+	led_trigger_event(cpuidle_led_trigger, LED_OFF);
+#endif
 
-  return idle_time;
+	local_irq_disable();
+	do_gettimeofday(&before);
+	lm3s_state->enter();
+	do_gettimeofday(&after);
+	local_irq_enable();
+	idle_time = (after.tv_sec - before.tv_sec) * USEC_PER_SEC +
+			(after.tv_usec - before.tv_usec);
+
+#ifdef CONFIG_LEDS_TRIGGER_CPUIDLE
+	led_trigger_event(cpuidle_led_trigger, LED_FULL);
+#endif
+
+	return idle_time;
 }
 
 static struct lm3s_idle_state lm3s_idle_states[LM3S_MAX_STATES] =
 {
-  { .enter = cpu_do_idle },
 	{ .enter = cpu_do_idle },
+	{ .enter = cpu_do_sleep },
 };
 
 struct cpuidle_device lm3s_cpuidle_device =
 {
-  .state_count = LM3S_MAX_STATES,
-  .states =
-  {
-    {
-      .name             = "idle0",
-      .desc             = "MCU Sleep",
-      .exit_latency     = 1,
-      .target_residency = 10000,
-      .driver_data      = &lm3s_idle_states[0],
-      .enter            = lm3s_enter_idle,
-    },
-    {
-      .name             = "idle1",
-      .desc             = "Deep-Sleep & DRAM Self Refresh",
-      .exit_latency     = 20,
-      .target_residency = 10000,
-      .driver_data      = &lm3s_idle_states[1],
-      .enter            = lm3s_enter_idle,
-    },
-  },
+	.state_count = LM3S_MAX_STATES,
+	.states =
+	{
+		{
+			.name             = "idle0",
+			.desc             = "MCU Sleep",
+			.exit_latency     = 1,
+			.target_residency = 10000,
+			.driver_data      = &lm3s_idle_states[0],
+			.enter            = lm3s_enter_idle,
+		},
+		{
+			.name             = "idle1",
+			.desc             = "MCU Sleep & DRAM Self Refresh",
+			.exit_latency     = 20,
+			.target_residency = 10000,
+			.driver_data      = &lm3s_idle_states[1],
+			.enter            = lm3s_enter_idle,
+		},
+	},
 };
 
 static struct cpuidle_driver lm3s_idle_driver = {
-  .name =         DRIVER_NAME,
-  .owner =        THIS_MODULE,
+	.name  = DRIVER_NAME,
+	.owner = THIS_MODULE,
 };
 
 /* Initialize CPU idle by registering the idle states */
@@ -137,6 +149,10 @@ static int __init lm3s_init_cpuidle(void)
     printk(KERN_ERR "%s: Failed registering\n", __func__);
     return -EIO;
   }
+
+#ifdef CONFIG_LEDS_TRIGGER_CPUIDLE
+  led_trigger_register_simple("cpuidle", &cpuidle_led_trigger);
+#endif
 
   return 0;
 }

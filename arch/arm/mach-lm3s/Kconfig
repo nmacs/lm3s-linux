@@ -34,6 +34,13 @@ config MPU
 	help
 	  Enable MPU support for LM3S controllers
 
+config LEDS_TRIGGER_CPUIDLE
+	bool "CPU Idle LED Trigger"
+	default n
+	depends on CPU_IDLE
+	help
+	  Enable CPU Idle LED Trigger. LED is on while CPU is active.
+
 config LM3S_COPY_TO_SRAM
 	bool "Copy some code and data to SRAM"
 	default n
