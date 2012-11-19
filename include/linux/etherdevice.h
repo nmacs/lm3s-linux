@@ -10,7 +10,7 @@
  * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *
- *		Relocated to include/linux where it belongs by Alan Cox 
+ *		Relocated to include/linux where it belongs by Alan Cox
  *							<gw4pts@gw4pts.ampr.org>
  *
  *		This program is free software; you can redistribute it and/or
@@ -124,6 +124,21 @@ static inline void random_ether_addr(u8 *addr)
 	get_random_bytes (addr, ETH_ALEN);
 	addr [0] &= 0xfe;	/* clear multicast bit */
 	addr [0] |= 0x02;	/* set local assignment bit (IEEE802) */
+}
+
+/**
+ * eth_hw_addr_random - Generate software assigned random Ethernet and
+ * set device flag
+ * @dev: pointer to net_device structure
+ *
+ * Generate a random Ethernet address (MAC) to be used by a net device
+ * and set addr_assign_type so the state can be read by sysfs and be
+ * used by userspace.
+ */
+static inline void eth_hw_addr_random(struct net_device *dev)
+{
+	dev->addr_assign_type |= NET_ADDR_RANDOM;
+	random_ether_addr(dev->dev_addr);
 }
 
 /**
