@@ -40,7 +40,11 @@
 /**
  * Module parameter that defines the ecryptfs_verbosity level.
  */
+#ifdef CONFIG_ECRYPT_FS_DEBUG
+int ecryptfs_verbosity = 1;
+#else
 int ecryptfs_verbosity = 0;
+#endif
 
 module_param(ecryptfs_verbosity, int, 0);
 MODULE_PARM_DESC(ecryptfs_verbosity,

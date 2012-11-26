@@ -12,3 +12,15 @@ config ECRYPT_FS
 
 	  To compile this file system support as a module, choose M here: the
 	  module will be called ecryptfs.
+
+config ECRYPT_FS_XATTR
+	bool "Extended attributes support"
+	depends on ECRYPT_FS
+	help
+	  This option enables support of extended attributes.
+
+config ECRYPT_FS_DEBUG
+	bool "Enable debugging"
+	depends on ECRYPT_FS
+	help
+	  This option enables eCryptFS debugging.

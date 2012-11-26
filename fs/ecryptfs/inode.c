@@ -1030,6 +1030,7 @@ int ecryptfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	return rc;
 }
 
+#ifdef CONFIG_ECRYPT_FS_XATTR
 int
 ecryptfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		  size_t size, int flags)
@@ -1110,6 +1111,7 @@ static int ecryptfs_removexattr(struct dentry *dentry, const char *name)
 out:
 	return rc;
 }
+#endif
 
 int ecryptfs_inode_test(struct inode *inode, void *candidate_lower_inode)
 {
@@ -1132,10 +1134,12 @@ const struct inode_operations ecryptfs_symlink_iops = {
 	.put_link = ecryptfs_put_link,
 	.permission = ecryptfs_permission,
 	.setattr = ecryptfs_setattr,
+#ifdef CONFIG_ECRYPT_FS_XATTR
 	.setxattr = ecryptfs_setxattr,
 	.getxattr = ecryptfs_getxattr,
 	.listxattr = ecryptfs_listxattr,
 	.removexattr = ecryptfs_removexattr
+#endif
 };
 
 const struct inode_operations ecryptfs_dir_iops = {
@@ -1149,19 +1153,23 @@ const struct inode_operations ecryptfs_dir_iops = {
 	.mknod = ecryptfs_mknod,
 	.rename = ecryptfs_rename,
 	.permission = ecryptfs_permission,
+#ifdef CONFIG_ECRYPT_FS_XATTR
 	.setattr = ecryptfs_setattr,
 	.setxattr = ecryptfs_setxattr,
 	.getxattr = ecryptfs_getxattr,
 	.listxattr = ecryptfs_listxattr,
 	.removexattr = ecryptfs_removexattr
+#endif
 };
 
 const struct inode_operations ecryptfs_main_iops = {
 	.permission = ecryptfs_permission,
 	.setattr = ecryptfs_setattr,
 	.getattr = ecryptfs_getattr,
+#ifdef CONFIG_ECRYPT_FS_XATTR
 	.setxattr = ecryptfs_setxattr,
 	.getxattr = ecryptfs_getxattr,
 	.listxattr = ecryptfs_listxattr,
 	.removexattr = ecryptfs_removexattr
+#endif
 };

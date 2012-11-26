@@ -1331,8 +1331,12 @@ ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
 {
 	int rc;
 
+#ifdef CONFIG_ECRYPT_FS_XATTR
 	rc = ecryptfs_setxattr(ecryptfs_dentry, ECRYPTFS_XATTR_NAME, page_virt,
 			       size, 0);
+#else
+	rc = -ENOSYS;
+#endif
 	return rc;
 }
 
@@ -1530,6 +1534,7 @@ out:
  */
 int ecryptfs_read_xattr_region(char *page_virt, struct inode *ecryptfs_inode)
 {
+#ifdef CONFIG_ECRYPT_FS_XATTR
 	struct dentry *lower_dentry =
 		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_dentry;
 	ssize_t size;
@@ -1547,6 +1552,9 @@ int ecryptfs_read_xattr_region(char *page_virt, struct inode *ecryptfs_inode)
 	}
 out:
 	return rc;
+#else
+	return -ENOSYS;
+#endif
 }
 
 int ecryptfs_read_and_validate_xattr_region(char *page_virt,
