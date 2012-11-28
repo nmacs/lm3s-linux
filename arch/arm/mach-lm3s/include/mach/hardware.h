@@ -26,6 +26,10 @@
 #error "TI LM3S1D21 MCU has no MMU"
 #endif
 
+#ifdef CONFIG_MACH_UWIC
+#  include "../../uwic_pins.h"
+#endif
+
 #define IO_ADDRESS(x)		(x)
 #define __io_address(n)		__io(IO_ADDRESS(n))
 
