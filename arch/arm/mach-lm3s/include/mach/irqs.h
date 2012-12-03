@@ -38,6 +38,8 @@
 #define LM3S1D21_SSI0_IRQ     7
 #define LM3S1D21_SSI1_IRQ     34
 
+#define LM3S1D21_GPIOA_IRQ    0
+#define LM3S1D21_GPIOB_IRQ    1
 #define LM3S1D21_GPIOG_IRQ    31
 
 #endif

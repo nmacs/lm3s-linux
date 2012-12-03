@@ -26,6 +26,11 @@ config MACH_UWIC
 	help
 	  Enables Elster uWIC Board.
 
+config MACH_UWIC_POWER_OFF_DELAY
+	int "uWIC outage PowerOff delay in milliseconds"
+	default 5000
+	depends on MACH_UWIC
+
 endif
 
 config MPU

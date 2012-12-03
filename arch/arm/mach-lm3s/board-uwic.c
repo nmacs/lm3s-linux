@@ -22,6 +22,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
+#include <mach/lm3s_power.h>
 
 /***************************************************************************/
 
@@ -187,6 +188,8 @@ static void __init uwic_init(void)
 	spi_register_board_info(uwic_spi_board_info, ARRAY_SIZE(uwic_spi_board_info));
 
 	lm3s_gpioirqenable(GPIO_ETH_INTRN);
+
+	lm3s_power_init(GPIO_POWER_FAIL, LM3S1D21_GPIOB_IRQ, GPIO_POWER_HOLD, CONFIG_MACH_UWIC_POWER_OFF_DELAY);
 }
 
 /***************************************************************************/

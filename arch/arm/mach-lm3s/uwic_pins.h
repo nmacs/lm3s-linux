@@ -14,7 +14,7 @@
 #define GPIO_ETH_INTRN   (GPIO_FUNC_INTERRUPT | GPIO_PORTG | 5 | GPIO_INT_LOWLEVEL)/* PG5: ETH chip interrupt */
 
 #define GPIO_POWER_HOLD  (GPIO_FUNC_OUTPUT    | GPIO_PORTF | 6)                    /* PF6: Power Hold (output) */
-#define GPIO_POWER_FAIL  (GPIO_FUNC_INPUT     | GPIO_PORTB | 6)                    /* PB6: Power Fail (input)  */
+#define GPIO_POWER_FAIL  (GPIO_FUNC_INTERRUPT | GPIO_PORTB | 6 | GPIO_INT_LOWLEVEL)/* PB6: Power Fail interrupt  */
 #define GPIO_CPU_LED     (GPIO_FUNC_OUTPUT    | GPIO_PORTD | 1)                    /* PB6: CPU LED */
 
 #define GPIO_UART1_TX    (GPIO_FUNC_PFOUTPUT | GPIO_PORTB | GPIO_DF(5) | 0)        /* PB0: UART 1 transmit (U1Tx) */
