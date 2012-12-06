@@ -417,7 +417,7 @@ pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	regs.ARM_cpsr = SVC_MODE | PSR_ENDSTATE | PSR_ISETSTATE;
 #ifdef CONFIG_CPU_V7M
 	/* Return to Handler mode */
-	regs.ARM_EXC_lr = 0xfffffff1L;
+	regs.ARM_EXC_RET = 0xfffffff1L;
 #endif
 
 	return do_fork(flags|CLONE_VM|CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);

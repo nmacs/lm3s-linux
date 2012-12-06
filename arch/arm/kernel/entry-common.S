@@ -40,20 +40,20 @@ ret_fast_syscall:
  * Ok, we need to do extra processing, enter the slow path.
  */
 fast_work_pending:
-#ifdef CONFIG_CPU_V7M
-	@ S_R0 not at the beginning of struct pt_regs
-	add	sp, #S_OFF
-	str	r0, [sp, #S_R0]			@ returned r0
-#else
 	str	r0, [sp, #S_R0+S_OFF]!		@ returned r0
-#endif
 work_pending:
 	tst	r1, #_TIF_NEED_RESCHED
 	bne	work_resched
-	tst	r1, #_TIF_SIGPENDING|_TIF_NOTIFY_RESUME
-	beq	no_work_pending
+	/*
+	 * TIF_SIGPENDING or TIF_NOTIFY_RESUME must've been set if we got here
+	 */
+	ldr	r2, [sp, #S_PSR]
 	mov	r0, sp				@ 'regs'
+	tst	r2, #15				@ are we returning to user mode?
+	bne	no_work_pending			@ no?  just leave, then...
 	mov	r2, why				@ 'syscall'
+	tst	r1, #_TIF_SIGPENDING		@ delivering a signal?
+	movne	why, #0				@ prevent further restarts
 	bl	do_notify_resume
 	b	ret_slow_syscall		@ Check work again
 
@@ -65,6 +65,7 @@ work_resched:
 ENTRY(ret_to_user)
 ret_slow_syscall:
 	disable_irq				@ disable interrupts
+ENTRY(ret_to_user_from_irq)
 	ldr	r1, [tsk, #TI_FLAGS]
 	tst	r1, #_TIF_WORK_MASK
 	bne	work_pending
@@ -73,6 +74,7 @@ no_work_pending:
 	arch_ret_to_user r1, lr
 
 	restore_user_regs fast = 0, offset = 0
+ENDPROC(ret_to_user_from_irq)
 ENDPROC(ret_to_user)
 
 /*
@@ -175,8 +177,8 @@ ftrace_stub:
  *-----------------------------------------------------------------------------
  */
 
-	/* If we're optimising for StrongARM the resulting code won't 
-	   run on an ARM7 and we can save a couple of instructions.  
+	/* If we're optimising for StrongARM the resulting code won't
+	   run on an ARM7 and we can save a couple of instructions.
 								--pb */
 #ifdef CONFIG_CPU_ARM710
 #define A710(code...) code
@@ -203,8 +205,8 @@ ENTRY(vector_swi)
 	mrs	r8, spsr			@ called from non-FIQ mode, so ok.
 	str	lr, [sp, #S_PC]			@ Save calling PC
 	str	r8, [sp, #S_PSR]		@ Save CPSR
-#endif
 	str	r0, [sp, #S_OLD_R0]		@ Save OLD_R0
+#endif
 	zero_fp
 
 	/*
@@ -267,7 +269,6 @@ ENTRY(vector_swi)
 
 	get_thread_info tsk
 	adr	tbl, sys_call_table		@ load syscall table pointer
-	ldr	ip, [tsk, #TI_FLAGS]		@ check for syscall tracing
 
 #if defined(CONFIG_OABI_COMPAT)
 	/*
@@ -284,8 +285,20 @@ ENTRY(vector_swi)
 	eor	scno, scno, #__NR_SYSCALL_BASE	@ check OS number
 #endif
 
+	ldr	r10, [tsk, #TI_FLAGS]		@ check for syscall tracing
 	stmdb	sp!, {r4, r5}			@ push fifth and sixth args
-	tst	ip, #_TIF_SYSCALL_TRACE		@ are we tracing syscalls?
+
+#ifdef CONFIG_SECCOMP
+	tst	r10, #_TIF_SECCOMP
+	beq	1f
+	mov	r0, scno
+	bl	__secure_computing
+	add	r0, sp, #S_R0 + S_OFF		@ pointer to regs
+	ldmia	r0, {r0 - r3}			@ have to reload r0 - r3
+1:
+#endif
+
+	tst	r10, #_TIF_SYSCALL_TRACE		@ are we tracing syscalls?
 	bne	__sys_trace
 
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
@@ -296,7 +309,7 @@ ENTRY(vector_swi)
 2:	mov	why, #0				@ no longer a real syscall
 	cmp	scno, #(__ARM_NR_BASE - __NR_SYSCALL_BASE)
 	eor	r0, scno, #__NR_SYSCALL_BASE	@ put OS number back
-	bcs	arm_syscall	
+	bcs	arm_syscall
 	b	sys_ni_syscall			@ not private func
 ENDPROC(vector_swi)
 
@@ -312,20 +325,14 @@ __sys_trace:
 
 	adr	lr, BSYM(__sys_trace_return)	@ return address
 	mov	scno, r0			@ syscall number (possibly new)
-	add	r1, sp, #S_OFF			@ pointer to regs
+	add	r1, sp, #S_R0 + S_OFF		@ pointer to regs
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
 	ldmccia	r1, {r0 - r3}			@ have to reload r0 - r3
 	ldrcc	pc, [tbl, scno, lsl #2]		@ call sys_* routine
 	b	2b
 
 __sys_trace_return:
-#ifdef CONFIG_CPU_V7M
-	@ S_R0 not at the beginning of struct pt_regs
-	add	sp, #S_OFF
-	str	r0, [sp, #S_R0]			@ save returned r0
-#else
 	str	r0, [sp, #S_R0 + S_OFF]!	@ save returned r0
-#endif
 	mov	r2, scno
 	mov	r1, sp
 	mov	r0, #1				@ trace exit [IP = 1]
@@ -398,11 +405,13 @@ ENDPROC(sys_clone_wrapper)
 
 sys_sigreturn_wrapper:
 		add	r0, sp, #S_OFF
+		mov	why, #0		@ prevent syscall restart handling
 		b	sys_sigreturn
 ENDPROC(sys_sigreturn_wrapper)
 
 sys_rt_sigreturn_wrapper:
 		add	r0, sp, #S_OFF
+		mov	why, #0		@ prevent syscall restart handling
 		b	sys_rt_sigreturn
 ENDPROC(sys_rt_sigreturn_wrapper)
 

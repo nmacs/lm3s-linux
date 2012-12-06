@@ -33,8 +33,7 @@ __invalid_entry:
 	bl	printk
 #endif
 	mov	r0, sp
-	bl	__show_regs
-
+	bl	show_regs
 1:	b	1b
 ENDPROC(__invalid_entry)
 
@@ -74,9 +73,9 @@ __irq_entry:
 	@
 	@ Check for any pending work if returning to user
 	@
-	ldr	lr, [sp, #S_EXC_LR]
-	cmp	lr, #0xfffffffd		@ check the return stack
-	bne	2f			@ returning to kernel
+	ldr	lr, [sp, #S_EXC_RET]
+	tst	lr, #0x8		@ check the return stack
+	beq	2f			@ returning to handler mode
 	get_thread_info tsk
 	ldr	r1, [tsk, #TI_FLAGS]
 	tst	r1, #_TIF_WORK_MASK
@@ -108,8 +107,10 @@ ENDPROC(__pendsv_entry)
  * previous and next are guaranteed not to be the same.
  */
 ENTRY(__switch_to)
+	.fnstart
+	.cantunwind
 	add	ip, r1, #TI_CPU_SAVE
-	stmia	ip!, {r4 - sl, fp}	@ Store most regs on stack
+	stmia	ip!, {r4 - r11}		@ Store most regs on stack
 	str	sp, [ip], #4
 	str	lr, [ip], #4
 	mov	r5, r0
@@ -119,9 +120,10 @@ ENTRY(__switch_to)
 	bl	atomic_notifier_call_chain
 	mov	ip, r4
 	mov	r0, r5
-	ldmia	ip!, {r4 - sl, fp}	@ Load all regs saved previously
+	ldmia	ip!, {r4 - r11}		@ Load all regs saved previously
 	ldr	sp, [ip], #4
 	ldr	pc, [ip]
+	.fnend
 ENDPROC(__switch_to)
 
 	.data

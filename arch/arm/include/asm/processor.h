@@ -62,8 +62,7 @@ struct thread_struct {
 #else
 #define nommu_start_thread(regs) do {					\
 	regs->ARM_r10 = current->mm->start_data;			\
-	regs->ARM_sp -= 32;		/* exception return state */	\
-	regs->ARM_EXC_lr = 0xfffffffdL;	/* exception lr */		\
+	regs->ARM_EXC_RET = 0xfffffffdL;	/* exception lr */		\
 } while (0)
 #endif
 #endif
