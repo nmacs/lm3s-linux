@@ -133,8 +133,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			cpumask_clear_cpu(cpu, mm_cpumask(prev));
 	}
 #elif defined(CONFIG_MPU)
-	if (prev != next)
-		update_protections(next);
+	update_protections(next);
 #endif
 }
 
