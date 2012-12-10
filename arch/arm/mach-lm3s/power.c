@@ -82,26 +82,33 @@ static void switch_irq_work(struct work_struct *work)
 
 void __init lm3s_power_init(int switch_pin, int switch_irq, int hold_pin, int switch_off_delay)
 {
-	int ret;
-
 #ifdef DEBUG
 	printk("LM3S power module init\n");
 #endif
 
-	pwr_switch_pin = switch_pin;
-	pwr_switch_irq = switch_irq;
 	pwr_hold_pin = hold_pin;
-	power_off_delay = switch_off_delay;
-
 	pm_power_off = lm3s_power_off;
 
 	set_power_hold_pin(1);
+}
+
+void __init lm3s_power_switch_init(int switch_pin, int switch_irq, int switch_off_delay)
+{
+	int ret;
+
+#ifdef DEBUG
+	printk("LM3S power switch init\n");
+#endif
+
+	pwr_switch_pin = switch_pin;
+	pwr_switch_irq = switch_irq;
+	power_off_delay = switch_off_delay;
 
 	INIT_WORK(&pwr_switch_irq_work, switch_irq_work);
 
 	ret = request_irq(pwr_switch_irq, power_switch_irq, IRQF_TRIGGER_LOW, "power-switch", NULL);
 	if (ret < 0) {
-		printk("failed to get irq\n");
+		printk("failed to get irq %i\n", pwr_switch_irq);
 	}
 
 	lm3s_gpioirqenable(pwr_switch_pin);

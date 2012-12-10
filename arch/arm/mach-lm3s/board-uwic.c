@@ -189,7 +189,11 @@ static void __init uwic_init(void)
 
 	lm3s_gpioirqenable(GPIO_ETH_INTRN);
 
-	lm3s_power_init(GPIO_POWER_FAIL, LM3S1D21_GPIOB_IRQ, GPIO_POWER_HOLD, CONFIG_MACH_UWIC_POWER_OFF_DELAY);
+	lm3s_power_init(GPIO_POWER_HOLD);
+
+#ifdef CONFIG_MACH_UWIC_ENABLE_PWRSWITCH
+	lm3s_power_switch_init(GPIO_POWER_FAIL, LM3S1D21_GPIOB_IRQ, CONFIG_MACH_UWIC_POWER_OFF_DELAY);
+#endif
 }
 
 /***************************************************************************/

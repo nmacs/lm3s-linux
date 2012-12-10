@@ -26,10 +26,14 @@ config MACH_UWIC
 	help
 	  Enables Elster uWIC Board.
 
+config MACH_UWIC_ENABLE_PWRSWITCH
+	bool "Enable PowerSwitch on the uWIC Board"
+	depends on MACH_UWIC
+
 config MACH_UWIC_POWER_OFF_DELAY
 	int "uWIC outage PowerOff delay in milliseconds"
 	default 5000
-	depends on MACH_UWIC
+	depends on MACH_UWIC_ENABLE_PWRSWITCH
 
 endif
 
