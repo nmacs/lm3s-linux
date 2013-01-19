@@ -35,6 +35,11 @@ config MACH_UWIC_POWER_OFF_DELAY
 	default 5000
 	depends on MACH_UWIC_ENABLE_PWRSWITCH
 
+config DISABLE_TIME_ADJUST
+	bool "Disable time adjust"
+	default n
+	depends on MACH_UWIC
+
 endif
 
 config MPU
