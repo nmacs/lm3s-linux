@@ -40,6 +40,15 @@ config DISABLE_TIME_ADJUST
 	default n
 	depends on MACH_UWIC
 
+config FIRMWARE_UPGRADE
+	bool "Do firmware upgrade"
+	default n
+
+config FIRMWARE_FILE
+	string "Path to firmware file"
+	default "/etc/firmware"
+	depends on FIRMWARE_UPGRADE
+
 endif
 
 config MPU
