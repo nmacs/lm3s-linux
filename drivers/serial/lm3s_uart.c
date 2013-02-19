@@ -36,6 +36,7 @@
 
 #include <mach/hardware.h>
 #include <mach/timex.h>
+#include <mach/sram.h>
 
 /****************************************************************************/
 
@@ -181,7 +182,7 @@ static void lm3s_break_ctl(struct uart_port *port, int break_state)
   unsigned long flags;
   uint32_t regval;
 
-  //dev_dbg(port->dev, "%s\n", __func__);
+  dev_dbg(port->dev, "%s\n", __func__);
 
   spin_lock_irqsave(&port->lock, flags);
 
@@ -249,7 +250,8 @@ static void lm3s_set_termios(struct uart_port *port, struct ktermios *termios,
   uint32_t ctl, lcrh;
 
   baud = uart_get_baud_rate(port, termios, old, 0, 230400);
-  //dev_dbg(port->dev, "%s: membase %x, new baud %u\n", __func__, port->membase, baud);
+
+  dev_dbg(port->dev, "%s: membase %x, new baud %u\n", __func__, port->membase, baud);
 
   /* Calculate BAUD rate from the SYS clock:
    *
@@ -362,14 +364,14 @@ static void lm3s_set_termios(struct uart_port *port, struct ktermios *termios,
 
 /****************************************************************************/
 
-static void lm3s_rx_chars(struct lm3s_serial_port *pp)
+static void __sram lm3s_rx_chars(struct lm3s_serial_port *pp)
 {
   struct uart_port *port = &pp->port;
   unsigned char ch;
   unsigned int flag;
   unsigned int status, rxdata;
 
-  //dev_vdbg(port->dev, "%s\n", __func__);
+  dev_vdbg(port->dev, "%s\n", __func__);
 
   while( ((lm3s_getreg32(port->membase + LM3S_UART_FR_OFFSET)) & UART_FR_RXFE) == 0 )
   {
@@ -401,10 +403,14 @@ static void lm3s_rx_chars(struct lm3s_serial_port *pp)
     else if (status & UART_DR_FE)
       flag = TTY_FRAME;
 
-    if (uart_handle_sysrq_char(port, ch))
-      continue;
+    //if (uart_handle_sysrq_char(port, ch))
+      //continue;
+    //uart_insert_char(port, status, UART_DR_OE, ch, flag);
 
-    uart_insert_char(port, status, UART_DR_OE, ch, flag);
+		{
+			struct tty_struct *tty = port->state->port.tty;
+			tty_insert_flip_char(tty, ch, flag);
+		}
   }
 
   tty_flip_buffer_push(port->state->port.tty);
@@ -412,13 +418,13 @@ static void lm3s_rx_chars(struct lm3s_serial_port *pp)
 
 /****************************************************************************/
 
-static int lm3s_tx_chars(struct lm3s_serial_port *pp)
+static int __sram lm3s_tx_chars(struct lm3s_serial_port *pp)
 {
   struct uart_port *port = &pp->port;
   struct circ_buf *xmit = &port->state->xmit;
   uint32_t regval;
 
-  //dev_dbg(port->dev, "%s\n", __func__);
+  dev_vdbg(port->dev, "%s\n", __func__);
 
   if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
     regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
@@ -457,7 +463,7 @@ static int lm3s_tx_chars(struct lm3s_serial_port *pp)
 
 /****************************************************************************/
 
-static irqreturn_t lm3s_interrupt(int irq, void *data)
+static irqreturn_t __sram lm3s_interrupt(int irq, void *data)
 {
   struct uart_port *port = data;
   struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
@@ -481,6 +487,8 @@ static irqreturn_t lm3s_interrupt(int irq, void *data)
 static void lm3s_config_port(struct uart_port *port, int flags)
 {
   port->type = PORT_LM3S;
+
+	dev_vdbg(port->dev, "%s\n", __func__);
 
   if (request_irq(port->irq, lm3s_interrupt, IRQF_DISABLED, "UART", port))
     dev_err(port->dev, "Unable to attach UART %d "
