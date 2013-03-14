@@ -176,9 +176,10 @@ static void lm3s_start_tx(struct uart_port *port)
 static void lm3s_stop_tx(struct uart_port *port)
 {
   unsigned long flags;
-  uint32_t regval;
 #ifdef CONFIG_LM3S_DMA
 	struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
+#else
+	uint32_t regval;
 #endif
 
   dev_dbg(port->dev, "%s\n", __func__);
@@ -462,9 +463,10 @@ static int __sram lm3s_tx_chars(struct lm3s_serial_port *pp)
 {
   struct uart_port *port = &pp->port;
   struct circ_buf *xmit = &port->state->xmit;
-  uint32_t regval;
 #ifdef CONFIG_LM3S_DMA
 	size_t xfer_size;
+#else
+	uint32_t regval;
 #endif
 
   dev_vdbg(port->dev, "%s\n", __func__);
@@ -500,7 +502,7 @@ static int __sram lm3s_tx_chars(struct lm3s_serial_port *pp)
 								 xfer_size,
 								 DMA_XFER_MEMORY_TO_DEVICE | DMA_XFER_UNIT_BYTE);
 
-	dev_vdbg(port->dev, "%s: dma_ch %p, xfer_size %u, dst %p\n",
+	dev_vdbg(port->dev, "%s: dma_ch %x, xfer_size %u, dst %p\n",
 					 __func__, pp->dma_tx_channel, xfer_size, port->membase + LM3S_UART_DR_OFFSET);
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
