@@ -38,6 +38,10 @@
 #include <mach/timex.h>
 #include <mach/sram.h>
 
+#ifdef CONFIG_LM3S_DMA
+#  include <mach/dma.h>
+#endif
+
 /****************************************************************************/
 
 /*
@@ -46,6 +50,12 @@
 struct lm3s_serial_port {
   struct uart_port  port;
   uint32_t rcgc1_mask;
+#ifdef CONFIG_LM3S_DMA
+	uint32_t dma_rx_channel;
+	uint32_t dma_tx_channel;
+	void *dma_tx_buffer;
+	uint32_t tx_busy;
+#endif
 };
 
 static int lm3s_tx_chars(struct lm3s_serial_port *pp);
@@ -56,6 +66,8 @@ static void lm3s_enable_uart(struct uart_port *port)
 {
   uint32_t regval;
   struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
+
+	dev_vdbg(port->dev, "%s\n", __func__);
 
   regval = lm3s_getreg32(LM3S_SYSCON_RCGC1);
   regval |= pp->rcgc1_mask;
@@ -73,6 +85,12 @@ static void lm3s_enable_uart(struct uart_port *port)
   regval = lm3s_getreg32(port->membase + LM3S_UART_CTL_OFFSET);
   regval |= UART_CTL_UARTEN;
   lm3s_putreg32(regval, port->membase + LM3S_UART_CTL_OFFSET);
+
+#ifdef CONFIG_LM3S_DMA
+	dev_vdbg(port->dev, "%s enable port dma\n", __func__);
+	lm3s_putreg32(UART_DMACTL_TXDMAE, port->membase + LM3S_UART_DMACTL_OFFSET);
+	pp->tx_busy = 0;
+#endif
 }
 
 /****************************************************************************/
@@ -81,6 +99,8 @@ static void lm3s_disable_uart(struct uart_port *port)
 {
   uint32_t regval;
   struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
+
+	dev_vdbg(port->dev, "%s\n", __func__);
 
   /* Disable all interrupts now */
   lm3s_putreg32(0, port->membase + LM3S_UART_IM_OFFSET);
@@ -129,12 +149,20 @@ static void lm3s_start_tx(struct uart_port *port)
 
   spin_lock_irqsave(&port->lock, flags);
 
-  if( lm3s_tx_chars(pp) )
-  {
-    regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
-    regval |= UART_IM_TXIM;
-    lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
-  }
+	regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
+
+#ifdef CONFIG_LM3S_DMA
+	if( !pp->tx_busy )
+		lm3s_tx_chars(pp);
+  else
+		dev_dbg(port->dev, "%s port busy\n", __func__);
+#else
+	if(lm3s_tx_chars(pp) )
+	{
+		regval |= UART_IM_TXIM;
+		lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
+	}
+#endif
 
   spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -145,14 +173,22 @@ static void lm3s_stop_tx(struct uart_port *port)
 {
   unsigned long flags;
   uint32_t regval;
+#ifdef CONFIG_LM3S_DMA
+	struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
+#endif
 
   dev_dbg(port->dev, "%s\n", __func__);
 
   spin_lock_irqsave(&port->lock, flags);
 
+#ifdef CONFIG_LM3S_DMA
+	dma_stop_xfer(pp->dma_tx_channel);
+	pp->tx_busy = 0;
+#else
   regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
   regval &= ~UART_IM_TXIM;
   lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
+#endif
 
   spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -251,7 +287,7 @@ static void lm3s_set_termios(struct uart_port *port, struct ktermios *termios,
 
   baud = uart_get_baud_rate(port, termios, old, 0, 230400);
 
-  dev_dbg(port->dev, "%s: membase %x, new baud %u\n", __func__, port->membase, baud);
+  dev_dbg(port->dev, "%s: membase %p, new baud %u\n", __func__, port->membase, baud);
 
   /* Calculate BAUD rate from the SYS clock:
    *
@@ -423,13 +459,22 @@ static int __sram lm3s_tx_chars(struct lm3s_serial_port *pp)
   struct uart_port *port = &pp->port;
   struct circ_buf *xmit = &port->state->xmit;
   uint32_t regval;
+#ifdef CONFIG_LM3S_DMA
+	size_t xfer_size;
+#endif
 
   dev_vdbg(port->dev, "%s\n", __func__);
 
   if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-    regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
+		dev_vdbg(port->dev, "%s TX complete\n", __func__);
+#ifdef CONFIG_LM3S_DMA
+		dma_stop_xfer(pp->dma_tx_channel);
+		pp->tx_busy = 0;
+#else
+		regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
     regval &= ~UART_IM_TXIM;
     lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
+#endif
     return 0;
   }
 
@@ -440,6 +485,23 @@ static int __sram lm3s_tx_chars(struct lm3s_serial_port *pp)
     port->icount.tx++;
   }
 
+#ifdef CONFIG_LM3S_DMA
+	pp->tx_busy = 1;
+  xfer_size = min(CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE), DMA_MAX_TRANSFER_SIZE);
+	memcpy(pp->dma_tx_buffer, xmit->buf + xmit->tail, xfer_size);
+	xmit->tail = (xmit->tail + xfer_size) & (UART_XMIT_SIZE - 1);
+	dma_start_xfer(pp->dma_tx_channel,
+								 port->membase + LM3S_UART_DR_OFFSET,
+								 pp->dma_tx_buffer,
+								 xfer_size,
+								 DMA_XFER_MEMORY_TO_DEVICE | DMA_XFER_UNIT_BYTE);
+
+	dev_vdbg(port->dev, "%s: dma_ch %p, xfer_size %u, dst %p\n",
+					 __func__, pp->dma_tx_channel, xfer_size, port->membase + LM3S_UART_DR_OFFSET);
+
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+    uart_write_wakeup(port);
+#else
   while ((lm3s_getreg32(port->membase + LM3S_UART_FR_OFFSET) & UART_FR_TXFF) == 0) {
     if (xmit->head == xmit->tail)
       break;
@@ -452,11 +514,13 @@ static int __sram lm3s_tx_chars(struct lm3s_serial_port *pp)
     uart_write_wakeup(port);
 
   if (xmit->head == xmit->tail) {
+		dev_vdbg(port->dev, "%s TX complete\n", __func__);
     regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
     regval &= ~UART_IM_TXIM;
     lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
     return 0;
   }
+#endif
 
   return 1;
 }
@@ -469,15 +533,30 @@ static irqreturn_t __sram lm3s_interrupt(int irq, void *data)
   struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
   uint32_t isr;
 
-  //dev_vdbg(port->dev, "%s\n", __func__);
-
   isr = lm3s_getreg32(port->membase + LM3S_UART_MIS_OFFSET);
   lm3s_putreg32(0xFFFFFFFF, port->membase + LM3S_UART_ICR_OFFSET);
 
+	dev_vdbg(port->dev, "%s ISR 0x%x\n", __func__, isr);
+
   if (isr & (UART_MIS_RXMIS | UART_MIS_RTMIS))
+	{
+		dev_vdbg(port->dev, "%s RX\n", __func__);
     lm3s_rx_chars(pp);
+	}
+
+#ifdef CONFIG_LM3S_DMA
+	if (dma_ack_interrupt(pp->dma_tx_channel))
+	{
+		dev_vdbg(port->dev, "%s TX\n", __func__);
+		lm3s_tx_chars(pp);
+	}
+#else
   if (isr & UART_MIS_TXMIS)
+	{
+		dev_vdbg(port->dev, "%s TX\n", __func__);
     lm3s_tx_chars(pp);
+	}
+#endif
 
   return IRQ_HANDLED;
 }
@@ -486,6 +565,9 @@ static irqreturn_t __sram lm3s_interrupt(int irq, void *data)
 
 static void lm3s_config_port(struct uart_port *port, int flags)
 {
+#ifdef CONFIG_LM3S_DMA
+	struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
+#endif
   port->type = PORT_LM3S;
 
 	dev_vdbg(port->dev, "%s\n", __func__);
@@ -493,6 +575,11 @@ static void lm3s_config_port(struct uart_port *port, int flags)
   if (request_irq(port->irq, lm3s_interrupt, IRQF_DISABLED, "UART", port))
     dev_err(port->dev, "Unable to attach UART %d "
       "interrupt vector=%d\n", port->line, port->irq);
+
+#ifdef CONFIG_LM3S_DMA
+	dev_vdbg(port->dev, "%s setup channel\n", __func__);
+	dma_setup_channel(pp->dma_tx_channel, DMA_DEFAULT_CONFIG);
+#endif
 }
 
 /****************************************************************************/
@@ -658,6 +745,11 @@ static int __devinit lm3s_probe(struct platform_device *pdev)
     port = &pp->port;
 
     pp->rcgc1_mask = platp[i].rcgc1_mask;
+#ifdef CONFIG_LM3S_DMA
+		pp->dma_rx_channel = platp[i].dma_rx_channel;
+		pp->dma_tx_channel = platp[i].dma_tx_channel;
+		pp->dma_tx_buffer = platp[i].dma_tx_buffer;
+#endif
 
     port->dev = &pdev->dev;
     port->line = i;

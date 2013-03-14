@@ -60,6 +60,7 @@
 #define LM3S_UART_RIS_OFFSET       0x03c /* UART Raw Interrupt Status */
 #define LM3S_UART_MIS_OFFSET       0x040 /* UART Masked Interrupt Status */
 #define LM3S_UART_ICR_OFFSET       0x044 /* UART Interrupt Clear */
+#define LM3S_UART_DMACTL_OFFSET    0X048 /* UART DMA Control */
 #define LM3S_UART_PERIPHID4_OFFSET 0xfd0 /* UART Peripheral Identification 4 */
 #define LM3S_UART_PERIPHID5_OFFSET 0xfd4 /* UART Peripheral Identification 5 */
 #define LM3S_UART_PERIPHID6_OFFSET 0xfd8 /* UART Peripheral Identification 6 */
@@ -91,6 +92,7 @@
 #define LM3S_UART_RIS(n)           (LM3S_UART_BASE(n) + LM3S_UART_RIS_OFFSET)
 #define LM3S_UART_MIS(n)           (LM3S_UART_BASE(n) + LM3S_UART_MIS_OFFSET)
 #define LM3S_UART_ICR(n)           (LM3S_UART_BASE(n) + LM3S_UART_ICR_OFFSET)
+#define LM3S_UART_DMACTL(n)        (LM3S_UART_BASE(n) + LM3S_UART_DMACTL_OFFSET)
 #define LM3S_UART_PERIPHID4(n)     (LM3S_UART_BASE(n) + LM3S_UART_PERIPHID4_OFFSET)
 #define LM3S_UART_PERIPHID5(n)     (LM3S_UART_BASE(n) + LM3S_UART_PERIPHID5_OFFSET)
 #define LM3S_UART_PERIPHID6(n)     (LM3S_UART_BASE(n) + LM3S_UART_PERIPHID6_OFFSET)
@@ -104,7 +106,7 @@
 #define LM3S_UART_PCELLID2(n)      (LM3S_UART_BASE(n) + LM3S_UART_PCELLID2_OFFSET)
 #define LM3S_UART_PCELLID3(n)      (LM3S_UART_BASE(n) + LM3S_UART_PCELLID3_OFFSET)
 
-#define LM3S_UART0_DR              (LM3S_UART0_BASE + LM3S_UART_TDR_OFFSET)
+#define LM3S_UART0_DR              (LM3S_UART0_BASE + LM3S_UART_DR_OFFSET)
 #define LM3S_UART0_RSR             (LM3S_UART0_BASE + LM3S_UART_RSR_OFFSET)
 #define LM3S_UART0_ECR             (LM3S_UART0_BASE + LM3S_UART_ECR_OFFSET)
 #define LM3S_UART0_FR              (LM3S_UART0_BASE + LM3S_UART_FR_OFFSET)
@@ -118,6 +120,7 @@
 #define LM3S_UART0_RIS             (LM3S_UART0_BASE + LM3S_UART_RIS_OFFSET)
 #define LM3S_UART0_MIS             (LM3S_UART0_BASE + LM3S_UART_MIS_OFFSET)
 #define LM3S_UART0_ICR             (LM3S_UART0_BASE + LM3S_UART_ICR_OFFSET)
+#define LM3S_UART0_DMACTL          (LM3S_UART0_BASE + LM3S_UART_DMACTL_OFFSET)
 #define LM3S_UART0_PERIPHID4       (LM3S_UART0_BASE + LM3S_UART_PERIPHID4_OFFSET)
 #define LM3S_UART0_PERIPHID5       (LM3S_UART0_BASE + LM3S_UART_PERIPHID5_OFFSET)
 #define LM3S_UART0_PERIPHID6       (LM3S_UART0_BASE + LM3S_UART_PERIPHID6_OFFSET)
@@ -145,6 +148,7 @@
 #define LM3S_UART1_RIS             (LM3S_UART1_BASE + LM3S_UART_RIS_OFFSET)
 #define LM3S_UART1_MIS             (LM3S_UART1_BASE + LM3S_UART_MIS_OFFSET)
 #define LM3S_UART1_ICR             (LM3S_UART1_BASE + LM3S_UART_ICR_OFFSET)
+#define LM3S_UART1_DMACTL          (LM3S_UART1_BASE + LM3S_UART_DMACTL_OFFSET)
 #define LM3S_UART1_PERIPHID4       (LM3S_UART1_BASE + LM3S_UART_PERIPHID4_OFFSET)
 #define LM3S_UART1_PERIPHID5       (LM3S_UART1_BASE + LM3S_UART_PERIPHID5_OFFSET)
 #define LM3S_UART1_PERIPHID6       (LM3S_UART1_BASE + LM3S_UART_PERIPHID6_OFFSET)
@@ -281,6 +285,12 @@
 #define UART_ICR_BEIC             (1 << 9)  /* Bit 9:  Break Error Interrupt Clear */
 #define UART_ICR_OEIC             (1 << 10) /* Bit 10: Overrun Error Interrupt Clear
  */
+
+/*  UART DMA Control (UARTDMACTL), offset 0x048 */
+
+#define UART_DMACTL_RXDMAE        (1 << 0) /* Bit 0: Receive DMA Enable */
+#define UART_DMACTL_TXDMAE        (1 << 1) /* Bit 1: Transmit DMA Enable */
+#define UART_DMACTL_DMAERR        (1 << 2) /* Bit 2: DMA on Error */
 
 /* UART Peripheral Identification 4 (PERIPHID4), offset 0xfd0 */
 

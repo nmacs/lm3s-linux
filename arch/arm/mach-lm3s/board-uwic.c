@@ -24,6 +24,11 @@
 #include <asm/mach/irq.h>
 #include <mach/lm3s_power.h>
 
+#ifdef CONFIG_LM3S_DMA
+#  include <mach/dma.h>
+#  include <mach/sram.h>
+#endif
+
 /***************************************************************************/
 
 static struct resource lm3s_spi_resources0[] = {
@@ -101,21 +106,42 @@ static struct spi_board_info uwic_spi_board_info[] = {
 
 /***************************************************************************/
 
+#ifdef CONFIG_LM3S_DMA
+char __sramdata uart0_dma_tx_buffer[DMA_MAX_TRANSFER_SIZE];
+char __sramdata uart1_dma_tx_buffer[DMA_MAX_TRANSFER_SIZE];
+char __sramdata uart2_dma_tx_buffer[DMA_MAX_TRANSFER_SIZE];
+#endif
+
 static struct lm3s_platform_uart platform_uarts[] = {
   {
     .mapbase    = LM3S_UART0_BASE,
     .irq        = LM3S1D21_UART0_IRQ,
     .rcgc1_mask = SYSCON_RCGC1_UART0,
+#ifdef CONFIG_LM3S_DMA
+		.dma_rx_channel = DMA_CHANNEL_UART0_RX,
+		.dma_tx_channel = DMA_CHANNEL_UART0_TX,
+		.dma_tx_buffer = uart0_dma_tx_buffer,
+#endif
   },
   {
     .mapbase  = LM3S_UART1_BASE,
     .irq    = LM3S1D21_UART1_IRQ,
     .rcgc1_mask = SYSCON_RCGC1_UART1,
+#ifdef CONFIG_LM3S_DMA
+		.dma_rx_channel = DMA_CHANNEL_UART1_RX,
+		.dma_tx_channel = DMA_CHANNEL_UART1_TX,
+		.dma_tx_buffer = uart1_dma_tx_buffer,
+#endif
   },
   {
     .mapbase  = LM3S_UART2_BASE,
     .irq    = LM3S1D21_UART2_IRQ,
     .rcgc1_mask = SYSCON_RCGC1_UART2,
+#ifdef CONFIG_LM3S_DMA
+		.dma_rx_channel = DMA_CHANNEL_UART2_RX,
+		.dma_tx_channel = DMA_CHANNEL_UART2_TX,
+		.dma_tx_buffer = uart2_dma_tx_buffer,
+#endif
   },
   { },
 };

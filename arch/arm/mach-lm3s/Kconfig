@@ -57,6 +57,12 @@ config MPU
 	help
 	  Enable MPU support for LM3S controllers
 
+config LM3S_DMA
+	bool "Enable DMA"
+	default n
+	help
+	  Enable DMA in LM3S drivers.
+
 config LEDS_TRIGGER_CPUIDLE
 	bool "CPU Idle LED Trigger"
 	default n

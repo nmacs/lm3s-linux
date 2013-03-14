@@ -19,6 +19,11 @@ struct lm3s_platform_uart {
 	void __iomem	*membase;	/* Virtual address if mapped */
 	unsigned int	irq;		/* Interrupt vector */
 	uint32_t rcgc1_mask; /* Mask to enable/disable clock gate */
+#ifdef CONFIG_LM3S_DMA
+	uint32_t dma_rx_channel;
+	uint32_t dma_tx_channel;
+	void *dma_tx_buffer;
+#endif
 };
 
 /*
