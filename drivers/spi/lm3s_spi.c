@@ -514,7 +514,7 @@ static int __sram spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
 /***************************************************************************/
 
 #ifndef POLLING_MODE
-static irqreturn_t spi_lm3s_isr(int irq, void *dev_id)
+static irqreturn_t __sram spi_lm3s_isr(int irq, void *dev_id)
 {
 	uint32_t regval;
   int ntxd;

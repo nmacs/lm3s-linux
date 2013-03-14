@@ -151,7 +151,7 @@ void dma_setup_channel(unsigned int channel, unsigned int config)
 		lm3s_putreg32(chmask, LM3S_DMA_USEBURSTCLR);
 }
 
-void dma_start_xfer(unsigned int channel, void *dst, void *src, size_t size, unsigned int flags)
+void __sram dma_start_xfer(unsigned int channel, void *dst, void *src, size_t size, unsigned int flags)
 {
 	int ch = CHANNEL_NUMBER(channel);
 	int chmask = 1 << ch;
@@ -212,7 +212,7 @@ void dma_wait_xfer_complete(unsigned int channel)
 	while( lm3s_getreg32(LM3S_DMA_ENASET) & chmask ) {}
 }
 
-int dma_ack_interrupt(unsigned int channel)
+int __sram dma_ack_interrupt(unsigned int channel)
 {
 	int ch = CHANNEL_NUMBER(channel);
 	int chmask = 1 << ch;
