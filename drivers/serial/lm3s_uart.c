@@ -492,7 +492,7 @@ static int __sram lm3s_tx_chars(struct lm3s_serial_port *pp)
 #ifdef CONFIG_LM3S_DMA
 	pp->tx_busy = 1;
   xfer_size = min(CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE), DMA_MAX_TRANSFER_SIZE);
-	memcpy(pp->dma_tx_buffer, xmit->buf + xmit->tail, xfer_size);
+	dma_memcpy(pp->dma_tx_buffer, xmit->buf + xmit->tail, xfer_size);
 	xmit->tail = (xmit->tail + xfer_size) & (UART_XMIT_SIZE - 1);
 	dma_start_xfer(pp->dma_tx_channel,
 								 port->membase + LM3S_UART_DR_OFFSET,
