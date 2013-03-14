@@ -49,4 +49,6 @@ void dma_stop_xfer(unsigned int channel);
 void dma_wait_xfer_complete(unsigned int channel);
 int dma_ack_interrupt(unsigned int channel);
 
+extern void * dma_memcpy(void *, const void *, __kernel_size_t);
+
 #endif /* __ARCH_ARM_MACH_LM3S_DMA_H */
