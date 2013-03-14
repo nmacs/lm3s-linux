@@ -26,7 +26,10 @@
 
 //#define DEBUG
 //#define VERBOSE_DEBUG
-#define POLLING_MODE
+
+#ifndef CONFIG_LM3S_DMA
+#  define POLLING_MODE
+#endif
 
 #include <linux/clk.h>
 #include <linux/completion.h>
@@ -47,6 +50,10 @@
 #include <mach/lm3s_spi.h>
 #include <mach/hardware.h>
 #include <mach/sram.h>
+
+#ifdef CONFIG_LM3S_DMA
+#  include <mach/dma.h>
+#endif
 
 /***************************************************************************/
 
@@ -85,8 +92,18 @@ struct spi_lm3s_data {
   int      nrxwords;            /* Number of words received on the Rx FIFO */
   int      nwords;              /* Number of words to be exchanged */
 
+#ifdef CONFIG_LM3S_DMA
+	uint32_t dma_rx_flags;
+	uint32_t dma_tx_flags;
+	uint32_t dma_rx_channel;
+	uint32_t dma_tx_channel;
+	void *dma_rx_buffer;
+	void *dma_tx_buffer;
+	uint32_t xfer_size;
+#else
   void  (*txword)(struct spi_lm3s_data *priv);
   void  (*rxword)(struct spi_lm3s_data *priv);
+#endif
 };
 
 /***************************************************************************/
@@ -256,13 +273,12 @@ static int lm3s_config(struct spi_lm3s_config *config,
 
 /***************************************************************************/
 
+#ifndef CONFIG_LM3S_DMA
 static void __sram ssi_txnull(struct spi_lm3s_data *priv)
 {
   dev_vdbg(&priv->bitbang.master->dev, "TX: ->0x0000\n");
   ssi_putreg(priv, LM3S_SSI_DR_OFFSET, 0x0000);
 }
-
-/***************************************************************************/
 
 static void __sram ssi_txuint16(struct spi_lm3s_data *priv)
 {
@@ -272,8 +288,6 @@ static void __sram ssi_txuint16(struct spi_lm3s_data *priv)
   priv->txbuffer = (void*)ptr;
 }
 
-/***************************************************************************/
-
 static void __sram ssi_txuint8(struct spi_lm3s_data *priv)
 {
   uint8_t *ptr   = (uint8_t*)priv->txbuffer;
@@ -282,15 +296,11 @@ static void __sram ssi_txuint8(struct spi_lm3s_data *priv)
   priv->txbuffer = (void*)ptr;
 }
 
-/***************************************************************************/
-
 static void __sram ssi_rxnull(struct spi_lm3s_data *priv)
 {
   uint32_t regval  = ssi_getreg(priv, LM3S_SSI_DR_OFFSET);
   dev_vdbg(&priv->bitbang.master->dev, "RX: discard %04x\n", regval);
 }
-
-/***************************************************************************/
 
 static void __sram ssi_rxuint16(struct spi_lm3s_data *priv)
 {
@@ -300,8 +310,6 @@ static void __sram ssi_rxuint16(struct spi_lm3s_data *priv)
   priv->rxbuffer = (void*)(++ptr);
 }
 
-/***************************************************************************/
-
 static void __sram ssi_rxuint8(struct spi_lm3s_data *priv)
 {
   uint8_t *ptr   = (uint8_t*)priv->rxbuffer;
@@ -309,6 +317,7 @@ static void __sram ssi_rxuint8(struct spi_lm3s_data *priv)
   dev_vdbg(&priv->bitbang.master->dev, "RX: %p<-%02x\n", ptr, *ptr);
   priv->rxbuffer = (void*)(++ptr);
 }
+#endif
 
 /***************************************************************************/
 
@@ -326,6 +335,7 @@ static inline int ssi_rxfifoempty(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
+#ifndef CONFIG_LM3S_DMA
 static int __sram ssi_performtx(struct spi_lm3s_data *priv)
 {
 #ifndef POLLING_MODE
@@ -435,19 +445,43 @@ static void __sram ssi_performrx(struct spi_lm3s_data *priv)
   ssi_putreg(priv, LM3S_SSI_IM_OFFSET, regval);
 #endif
 }
+#endif
 
 /***************************************************************************/
 
 static int __sram spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
 {
-  int ntxd;
-
-  dev_vdbg(&priv->bitbang.master->dev, "ntxwords: %d nrxwords: %d nwords: %d SR: %08x\n",
-          priv->ntxwords, priv->nrxwords, priv->nwords,
+  dev_vdbg(&priv->bitbang.master->dev, "%s: ntxwords %d, nrxwords %d, nwords %d, SR %08x\n",
+          __func__, priv->ntxwords, priv->nrxwords, priv->nwords,
           ssi_getreg(priv, LM3S_SSI_SR_OFFSET));
 
+#ifdef CONFIG_LM3S_DMA
+		/* Check if the transfer is complete */
+  if (priv->ntxwords == 0)
+  {
+		dev_dbg(&priv->bitbang.master->dev, "Transfer complete\n");
+    /* Wake up the waiting thread */
+    complete(&priv->xfer_done);
+    return 0;
+  }
+
+	priv->xfer_size = min(priv->ntxwords, DMA_MAX_TRANSFER_SIZE);
+
+	if( priv->txbuffer )
+	{
+		dma_memcpy(priv->dma_tx_buffer, priv->txbuffer, priv->xfer_size);
+		priv->txbuffer = (char*)priv->txbuffer + priv->xfer_size;
+	}
+
+	dev_vdbg(&priv->bitbang.master->dev, "%s: xfer_size %u\n", __func__, priv->xfer_size);
+
+	dma_start_xfer(priv->dma_rx_channel, priv->dma_rx_buffer,
+								 priv->base + LM3S_SSI_DR_OFFSET, priv->xfer_size, priv->dma_rx_flags);
+	dma_start_xfer(priv->dma_tx_channel, priv->base + LM3S_SSI_DR_OFFSET,
+								 priv->dma_tx_buffer, priv->xfer_size, priv->dma_tx_flags);
+#else
   /* Handle outgoing Tx FIFO transfers */
-  ntxd = ssi_performtx(priv);
+  ssi_performtx(priv);
 
   /* Handle incoming Rx FIFO transfers */
   ssi_performrx(priv);
@@ -457,21 +491,22 @@ static int __sram spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
           ssi_getreg(priv, LM3S_SSI_SR_OFFSET),
           ssi_getreg(priv, LM3S_SSI_IM_OFFSET));
 
-  /* Check if the transfer is complete */
+	/* Check if the transfer is complete */
   if (priv->nrxwords >= priv->nwords)
   {
 #ifndef POLLING_MODE
     /* Yes.. Disable all SSI interrupt sources */
     ssi_putreg(priv, LM3S_SSI_IM_OFFSET, 0);
-#endif
 
     /* Wake up the waiting thread */
-    //complete(&priv->xfer_done);
+    complete(&priv->xfer_done);
+#endif
 
     dev_dbg(&priv->bitbang.master->dev, "Transfer complete\n");
 
     return 0;
   }
+#endif
 
   return 1;
 }
@@ -481,18 +516,34 @@ static int __sram spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
 #ifndef POLLING_MODE
 static irqreturn_t spi_lm3s_isr(int irq, void *dev_id)
 {
+	uint32_t regval;
+  int ntxd;
   struct spi_lm3s_data *priv = dev_id;
 
   dev_vdbg(&priv->bitbang.master->dev, "%s\n", __func__);
-
-  uint32_t regval;
-  int ntxd;
 
   /* Clear pending interrupts */
   regval = ssi_getreg(priv, LM3S_SSI_RIS_OFFSET);
   ssi_putreg(priv, LM3S_SSI_ICR_OFFSET, regval);
 
-  spi_lm3s_transfer_step(priv);
+#ifdef CONFIG_LM3S_DMA
+	dma_ack_interrupt(priv->dma_tx_channel);
+
+	if( dma_ack_interrupt(priv->dma_rx_channel) )
+	{
+		if( priv->rxbuffer )
+		{
+			dma_memcpy(priv->rxbuffer, priv->dma_rx_buffer, priv->xfer_size);
+			priv->rxbuffer = (char*)priv->rxbuffer + priv->xfer_size;
+		}
+		priv->nrxwords += priv->xfer_size;
+		priv->ntxwords -= priv->xfer_size;
+
+		spi_lm3s_transfer_step(priv);
+	}
+#else
+	spi_lm3s_transfer_step(priv);
+#endif
 
   return IRQ_HANDLED;
 }
@@ -518,6 +569,21 @@ static int __sram spi_lm3s_transfer(struct spi_device *spi,
   priv_master->nrxwords     = 0;                          /* Number of words received */
   priv_master->nwords       = transfer->len;              /* Total number of exchanges */
 
+#ifdef CONFIG_LM3S_DMA
+	priv_master->dma_tx_flags = DMA_XFER_MEMORY_TO_DEVICE;
+	priv_master->dma_rx_flags = DMA_XFER_DEVICE_TO_MEMORY;
+
+	if (dev_priv->bits_per_word > 8)
+	{
+		priv_master->dma_tx_flags |= DMA_XFER_UNIT_WORD;
+		priv_master->dma_rx_flags |= DMA_XFER_UNIT_WORD;
+	}
+  else
+	{
+		priv_master->dma_tx_flags |= DMA_XFER_UNIT_BYTE;
+		priv_master->dma_rx_flags |= DMA_XFER_UNIT_BYTE;
+	}
+#else
   if (!priv_master->txbuffer)
     priv_master->txword = ssi_txnull;
   else
@@ -537,6 +603,7 @@ static int __sram spi_lm3s_transfer(struct spi_device *spi,
     else
       priv_master->rxword = ssi_rxuint8;
   }
+#endif
 
   /* Set CR1 */
   ssi_putreg(priv_master, LM3S_SSI_CR1_OFFSET, 0);
@@ -671,6 +738,16 @@ static int __devinit spi_lm3s_probe(struct platform_device *pdev)
   priv->bitbang.master = spi_master_get(master);
   priv->chipselect = lm3s_platform_info->chipselect;
 
+#ifdef CONFIG_LM3S_DMA
+	priv->dma_tx_buffer = lm3s_platform_info->dma_tx_buffer;
+	priv->dma_rx_buffer = lm3s_platform_info->dma_rx_buffer;
+	priv->dma_tx_channel = lm3s_platform_info->dma_tx_channel;
+	priv->dma_rx_channel = lm3s_platform_info->dma_rx_channel;
+
+	dma_setup_channel(priv->dma_tx_channel, DMA_DEFAULT_CONFIG);
+	dma_setup_channel(priv->dma_rx_channel, DMA_DEFAULT_CONFIG);
+#endif
+
   priv->bitbang.chipselect = spi_lm3s_chipselect;
   priv->bitbang.setup_transfer = spi_lm3s_setupxfer;
   priv->bitbang.txrx_bufs = spi_lm3s_transfer;
@@ -714,6 +791,10 @@ static int __devinit spi_lm3s_probe(struct platform_device *pdev)
 #endif
 
   enable_ssi_clock();
+
+#ifdef CONFIG_LM3S_DMA
+	lm3s_putreg32(SSI_DMACTL_RXDMAE | SSI_DMACTL_TXDMAE, priv->base + LM3S_SSI_DMACTL_OFFSET);
+#endif
 
   ret = spi_bitbang_start(&priv->bitbang);
   if (ret) {

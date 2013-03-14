@@ -45,9 +45,20 @@ static struct resource lm3s_spi_resources0[] = {
 
 static int lm3s_spi_cs[] = {GPIO_SSI0_CS_SF, GPIO_SSI0_CS_EE, GPIO_SSI0_CS_ETH};
 
+#ifdef CONFIG_LM3S_DMA
+char __sramdata ssi0_dma_rx_buffer[DMA_MAX_TRANSFER_SIZE];
+char __sramdata ssi0_dma_tx_buffer[DMA_MAX_TRANSFER_SIZE];
+#endif
+
 static struct spi_lm3s_master lm3s_spi_0_data = {
   .chipselect = lm3s_spi_cs,
   .num_chipselect = ARRAY_SIZE(lm3s_spi_cs),
+#ifdef CONFIG_LM3S_DMA
+	.dma_rx_channel = DMA_CHANNEL_SSI0_RX,
+	.dma_tx_channel = DMA_CHANNEL_SSI0_TX,
+	.dma_rx_buffer = ssi0_dma_rx_buffer,
+	.dma_tx_buffer = ssi0_dma_tx_buffer,
+#endif
 };
 
 struct platform_device lm3s_spi_device0 = {

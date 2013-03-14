@@ -57,6 +57,7 @@
 #define LM3S_SSI_RIS_OFFSET       0x018 /* SSI Raw Interrupt Status */
 #define LM3S_SSI_MIS_OFFSET       0x01c /* SSI Masked Interrupt Status */
 #define LM3S_SSI_ICR_OFFSET       0x020 /* SSI Interrupt Clear */
+#define LM3S_SSI_DMACTL_OFFSET    0x024 /* SSI DMA Control */
 #define LM3S_SSI_PERIPHID4_OFFSET 0xfd0 /* SSI Peripheral Identification 4 */
 #define LM3S_SSI_PERIPHID5_OFFSET 0xfd4 /* SSI Peripheral Identification 5 */
 #define LM3S_SSI_PERIPHID6_OFFSET 0xfd8 /* SSI Peripheral Identification 6 */
@@ -81,6 +82,7 @@
 #define LM3S_SSI0_RIS             (LM3S_SSI0_BASE + LM3S_SSI_RIS_OFFSET)
 #define LM3S_SSI0_MIS             (LM3S_SSI0_BASE + LM3S_SSI_MIS_OFFSET)
 #define LM3S_SSI0_ICR             (LM3S_SSI0_BASE + LM3S_SSI_ICR_OFFSET)
+#define LM3S_SSI0_DMACTL          (LM3S_SSI0_BASE + LM3S_SSI_DMACTL_OFFSET)
 #define LM3S_SSI0_PERIPHID4       (LM3S_SSI0_BASE + LM3S_SSI_PERIPHID4_OFFSET)
 #define LM3S_SSI0_PERIPHID5       (LM3S_SSI0_BASE + LM3S_SSI_PERIPHID5_OFFSET)
 #define LM3S_SSI0_PERIPHID6       (LM3S_SSI0_BASE + LM3S_SSI_PERIPHID6_OFFSET)
@@ -104,6 +106,7 @@
 #define LM3S_SSI1_RIS             (LM3S_SSI1_BASE + LM3S_SSI_RIS_OFFSET)
 #define LM3S_SSI1_MIS             (LM3S_SSI1_BASE + LM3S_SSI_MIS_OFFSET)
 #define LM3S_SSI1_ICR             (LM3S_SSI1_BASE + LM3S_SSI_ICR_OFFSET)
+#define LM3S_SSI1_DMACTL          (LM3S_SSI1_BASE + LM3S_SSI_DMACTL_OFFSET)
 #define LM3S_SSI1_PERIPHID4       (LM3S_SSI1_BASE + LM3S_SSI_PERIPHID4_OFFSET)
 #define LM3S_SSI1_PERIPHID5       (LM3S_SSI1_BASE + LM3S_SSI_PERIPHID5_OFFSET)
 #define LM3S_SSI1_PERIPHID6       (LM3S_SSI1_BASE + LM3S_SSI_PERIPHID6_OFFSET)
@@ -128,6 +131,7 @@
 #define LM3S_SSI_RIS(n)           (LM3S_SSI_BASE(n) + LM3S_SSI_RIS_OFFSET)
 #define LM3S_SSI_MIS(n)           (LM3S_SSI_BASE(n) + LM3S_SSI_MIS_OFFSET)
 #define LM3S_SSI_ICR(n)           (LM3S_SSI_BASE(n) + LM3S_SSI_ICR_OFFSET)
+#define LM3S_SSI_DMACTL(n)        (LM3S_SSI_BASE(n) + LM3S_SSI_DMACTL_OFFSET)
 #define LM3S_SSI_PERIPHID4(n)     (LM3S_SSI_BASE(n) + LM3S_SSI_PERIPHID4_OFFSET)
 #define LM3S_SSI_PERIPHID5(n)     (LM3S_SSI_BASE(n) + LM3S_SSI_PERIPHID5_OFFSET)
 #define LM3S_SSI_PERIPHID6(n)     (LM3S_SSI_BASE(n) + LM3S_SSI_PERIPHID6_OFFSET)
@@ -195,6 +199,11 @@
 #define SSI_RIS_RT                (1 << 1)  /* Bit 1:  SSI Receive Time-Out Raw Interrupt Status */
 #define SSI_RIS_RX                (1 << 2)  /* Bit 2:  SSI Receive FIFO Raw Interrupt Status */
 #define SSI_RIS_TX                (1 << 3)  /* Bit 3:  SSI Transmit FIFO Raw Interrupt Status */
+
+/* SSI DMA Control (SSIDMACTL), offset 0x024 */
+
+#define SSI_DMACTL_RXDMAE         (1 << 0) /* Bit 0: SSI Receive DMA Enable */
+#define SSI_DMACTL_TXDMAE         (1 << 1) /* Bit 1: SSI Receive DMA Enable */
 
 /* SSI Masked Interrupt Status (SSIMIS), offset 0x01c */
 

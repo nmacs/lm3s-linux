@@ -26,12 +26,16 @@
 #define DMA_MAX_TRANSFER_SIZE     1024
 
 #define DMA_CHANNEL_ALT           0x80000000
+
 #define DMA_CHANNEL_UART0_RX      8
 #define DMA_CHANNEL_UART0_TX      9
 #define DMA_CHANNEL_UART1_RX      22
 #define DMA_CHANNEL_UART1_TX      23
 #define DMA_CHANNEL_UART2_RX      (12 | DMA_CHANNEL_ALT)
 #define DMA_CHANNEL_UART2_TX      (13 | DMA_CHANNEL_ALT)
+
+#define DMA_CHANNEL_SSI0_RX       10
+#define DMA_CHANNEL_SSI0_TX       11
 
 #define DMA_HIGH_PRIORITY         0x00000001
 #define DMA_USE_BURST             0x00000002
