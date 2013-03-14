@@ -82,6 +82,10 @@ static void lm3s_enable_uart(struct uart_port *port)
   regval |= UART_LCRH_FEN;
   lm3s_putreg32(regval, port->membase + LM3S_UART_LCRH_OFFSET);
 
+	regval = lm3s_getreg32(port->membase + LM3S_UART_IFLS_OFFSET);
+	regval = (regval & ~UART_IFLS_RXIFLSEL_MASK) | UART_IFLS_RXIFLSEL_18th;
+	lm3s_putreg32(regval, port->membase + LM3S_UART_IFLS_OFFSET);
+
   regval = lm3s_getreg32(port->membase + LM3S_UART_CTL_OFFSET);
   regval |= UART_CTL_UARTEN;
   lm3s_putreg32(regval, port->membase + LM3S_UART_CTL_OFFSET);
