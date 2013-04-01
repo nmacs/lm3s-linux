@@ -14,14 +14,11 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
-
+#include <mach/dma.h>
 #include <asm/page.h>
 #include <asm/fiq.h>
 #include <asm/irq.h>
-#include <mach/hardware.h>
-#include <mach/sram.h>
 #include <asm/uaccess.h>
-#include <mach/dma.h>
 
 void printascii(const char *str);
 
@@ -151,13 +148,16 @@ void dma_setup_channel(unsigned int channel, unsigned int config)
 		lm3s_putreg32(chmask, LM3S_DMA_USEBURSTCLR);
 }
 
-void __sram dma_start_xfer(unsigned int channel, void *dst, void *src, size_t size, unsigned int flags)
+void __sram dma_setup_xfer(unsigned int channel, void *dst, void *src, size_t size, unsigned int flags)
 {
 	int ch = CHANNEL_NUMBER(channel);
 	int chmask = 1 << ch;
-	struct lm3s_dma_channel *dma_channel = lm3s_dma_channels + ch;
 	int transfer_unit_size_code = 0;
 	size_t length;
+	struct lm3s_dma_channel *dma_channel = lm3s_dma_channels + ch;
+
+	if( flags & DMA_XFER_ALT )
+		dma_channel += LM3S_NUDMA;
 
 	if( flags & DMA_XFER_UNIT_BYTE )
 		transfer_unit_size_code = 0;
@@ -189,15 +189,24 @@ void __sram dma_start_xfer(unsigned int channel, void *dst, void *src, size_t si
 	dma_channel->DMACHCTL.ARBSIZE = 0;
 	dma_channel->DMACHCTL.XFERSIZE = length - 1;
 	dma_channel->DMACHCTL.NXTUSEBURST = 0;
-	dma_channel->DMACHCTL.XFERMODE = 1;
+
+	if( flags & DMA_XFER_MODE_PINGPONG )
+		dma_channel->DMACHCTL.XFERMODE = 3;
+	else
+		dma_channel->DMACHCTL.XFERMODE = 1;
 
 	//printk("DMA transfer: ch# %i, dst %p, src %p, size %u\n", ch, dst, src, dma_channel->DMACHCTL.XFERSIZE);
+}
 
+void __sram dma_start_xfer(unsigned int channel)
+{
+	int chmask = 1 << CHANNEL_NUMBER(channel);
+	lm3s_putreg32(chmask, LM3S_DMA_ALTCLR);
 	lm3s_putreg32(chmask, LM3S_DMA_REQMASKCLR);
 	lm3s_putreg32(chmask, LM3S_DMA_ENASET);
 }
 
-void dma_stop_xfer(unsigned int channel)
+void __sram dma_stop_xfer(unsigned int channel)
 {
 	int ch = CHANNEL_NUMBER(channel);
 	int chmask = 1 << ch;
@@ -223,6 +232,21 @@ int __sram dma_ack_interrupt(unsigned int channel)
 	}
 	else
 		return 0;
+}
+
+int __sram get_units_left(unsigned int channel, int alt)
+{
+	int ch = CHANNEL_NUMBER(channel);
+	int result = 0;
+	struct lm3s_dma_channel *dma_channel = lm3s_dma_channels + ch;
+	if( alt )
+		dma_channel += LM3S_NUDMA;
+
+	result = dma_channel->DMACHCTL.XFERSIZE;
+	if( dma_channel->DMACHCTL.XFERMODE )
+		result++;
+
+	return result;
 }
 
 static int __init lm3s_dma_init(void)

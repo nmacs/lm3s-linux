@@ -22,6 +22,7 @@
 #define __ARCH_ARM_MACH_LM3S_DMA_H
 
 #include <mach/hardware.h>
+#include <mach/sram.h>
 
 #define DMA_MAX_TRANSFER_SIZE     1024
 
@@ -46,12 +47,16 @@
 #define DMA_XFER_UNIT_BYTE        0x00000004
 #define DMA_XFER_UNIT_WORD        0x00000008
 #define DMA_XFER_UNIT_DOUBLE_WORD 0x00000010
+#define DMA_XFER_ALT              0x00000020
+#define DMA_XFER_MODE_PINGPONG    0x00000040
 
 void dma_setup_channel(unsigned int channel, unsigned int config);
-void dma_start_xfer(unsigned int channel, void *dst, void *src, size_t size, unsigned int flags);
-void dma_stop_xfer(unsigned int channel);
+void __sram dma_setup_xfer(unsigned int channel, void *dst, void *src, size_t size, unsigned int flags);
+void __sram dma_start_xfer(unsigned int channel);
+void __sram dma_stop_xfer(unsigned int channel);
 void dma_wait_xfer_complete(unsigned int channel);
-int dma_ack_interrupt(unsigned int channel);
+int __sram dma_ack_interrupt(unsigned int channel);
+int __sram get_units_left(unsigned int channel, int alt);
 
 extern void * dma_memcpy(void *, const void *, __kernel_size_t);
 
