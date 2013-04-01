@@ -2,8 +2,8 @@
 #include <linux/param.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <asm/lm3s_uart.h>
 #include <mach/hardware.h>
+#include <mach/uart.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>
 #include <linux/spi/flash.h>
@@ -118,9 +118,18 @@ static struct spi_board_info uwic_spi_board_info[] = {
 /***************************************************************************/
 
 #ifdef CONFIG_LM3S_DMA
-char __sramdata uart0_dma_tx_buffer[DMA_MAX_TRANSFER_SIZE];
-char __sramdata uart1_dma_tx_buffer[DMA_MAX_TRANSFER_SIZE];
-char __sramdata uart2_dma_tx_buffer[DMA_MAX_TRANSFER_SIZE];
+#define UART0_DMA_BUFFER_SIZE 128
+#define UART1_DMA_BUFFER_SIZE 512
+#define UART2_DMA_BUFFER_SIZE 1024
+
+char __sramdata uart0_dma_tx_buffer[UART0_DMA_BUFFER_SIZE];
+char __sramdata uart0_dma_rx_buffer[UART0_DMA_BUFFER_SIZE];
+
+char __sramdata uart1_dma_tx_buffer[UART1_DMA_BUFFER_SIZE];
+char __sramdata uart1_dma_rx_buffer[UART1_DMA_BUFFER_SIZE];
+
+char __sramdata uart2_dma_tx_buffer[UART2_DMA_BUFFER_SIZE];
+char __sramdata uart2_dma_rx_buffer[UART2_DMA_BUFFER_SIZE];
 #endif
 
 static struct lm3s_platform_uart platform_uarts[] = {
@@ -132,6 +141,8 @@ static struct lm3s_platform_uart platform_uarts[] = {
 		.dma_rx_channel = DMA_CHANNEL_UART0_RX,
 		.dma_tx_channel = DMA_CHANNEL_UART0_TX,
 		.dma_tx_buffer = uart0_dma_tx_buffer,
+		.dma_rx_buffer = uart0_dma_rx_buffer,
+		.dma_buffer_size = UART0_DMA_BUFFER_SIZE,
 #endif
   },
   {
@@ -142,6 +153,8 @@ static struct lm3s_platform_uart platform_uarts[] = {
 		.dma_rx_channel = DMA_CHANNEL_UART1_RX,
 		.dma_tx_channel = DMA_CHANNEL_UART1_TX,
 		.dma_tx_buffer = uart1_dma_tx_buffer,
+		.dma_rx_buffer = uart1_dma_rx_buffer,
+		.dma_buffer_size = UART1_DMA_BUFFER_SIZE,
 #endif
   },
   {
@@ -152,6 +165,8 @@ static struct lm3s_platform_uart platform_uarts[] = {
 		.dma_rx_channel = DMA_CHANNEL_UART2_RX,
 		.dma_tx_channel = DMA_CHANNEL_UART2_TX,
 		.dma_tx_buffer = uart2_dma_tx_buffer,
+		.dma_rx_buffer = uart2_dma_rx_buffer,
+		.dma_buffer_size = UART2_DMA_BUFFER_SIZE,
 #endif
   },
   { },
