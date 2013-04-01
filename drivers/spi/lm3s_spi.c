@@ -475,10 +475,12 @@ static int __sram spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
 
 	dev_vdbg(&priv->bitbang.master->dev, "%s: xfer_size %u\n", __func__, priv->xfer_size);
 
-	dma_start_xfer(priv->dma_rx_channel, priv->dma_rx_buffer,
+	dma_setup_xfer(priv->dma_rx_channel, priv->dma_rx_buffer,
 								 priv->base + LM3S_SSI_DR_OFFSET, priv->xfer_size, priv->dma_rx_flags);
-	dma_start_xfer(priv->dma_tx_channel, priv->base + LM3S_SSI_DR_OFFSET,
+	dma_setup_xfer(priv->dma_tx_channel, priv->base + LM3S_SSI_DR_OFFSET,
 								 priv->dma_tx_buffer, priv->xfer_size, priv->dma_tx_flags);
+	dma_start_xfer(priv->dma_rx_channel);
+	dma_start_xfer(priv->dma_tx_channel);
 #else
   /* Handle outgoing Tx FIFO transfers */
   ssi_performtx(priv);
