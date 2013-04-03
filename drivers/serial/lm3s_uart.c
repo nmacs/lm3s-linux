@@ -467,8 +467,8 @@ static void __sram do_rx_chars(struct work_struct *work)
 	int old_low_latency = tty->low_latency;
 	unsigned long flags;
 
-	for( i = 0; i < bytes_received; i++, slot++ )
-		tty_insert_flip_char(tty, *slot, TTY_NORMAL);
+	tty_insert_flip_string(tty, slot, bytes_received);
+	port->icount.rx += bytes_received;
 
 	tty->low_latency = 1;
 	tty_flip_buffer_push(tty);
