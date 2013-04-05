@@ -26,7 +26,7 @@
 
 #define CURRENT_WDT 0
 
-#define WDT_DEFAULT_TIME	5	/* seconds */
+#define WDT_DEFAULT_TIME	30	/* seconds */
 #define WDT_MAX_TIME		(0xFFFFFFFF / CLOCK_TICK_RATE)	/* seconds */
 
 static int wdt_time = WDT_DEFAULT_TIME;
@@ -172,7 +172,8 @@ static long lm3s_wdt_ioctl(struct file *file, unsigned int cmd,
 		if (lm3s_wdt_settimeout(new_value))
 			return -EINVAL;
 		/* Enable new time value */
-		lm3s_wdt_start();
+		if (lm3s_wdt_busy)
+			lm3s_wdt_start();
 		/* Return current value */
 		return put_user(wdt_time, p);
 	case WDIOC_GETTIMEOUT:
