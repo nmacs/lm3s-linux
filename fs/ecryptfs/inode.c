@@ -507,6 +507,11 @@ static int ecryptfs_symlink(struct inode *dir, struct dentry *dentry,
 	lower_dir_dentry = lock_parent(lower_dentry);
 	mount_crypt_stat = &ecryptfs_superblock_to_private(
 		dir->i_sb)->mount_crypt_stat;
+	if( mount_crypt_stat->flags & ECRYPTFS_NO_SYMLINKS )
+	{
+		rc = -EIO;
+		goto out_lock;
+	}
 	rc = ecryptfs_encrypt_and_encode_filename(&encoded_symname,
 						  &encoded_symlen,
 						  NULL,

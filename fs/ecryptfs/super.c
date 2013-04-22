@@ -194,6 +194,8 @@ static int ecryptfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 		seq_printf(m, ",ecryptfs_encrypted_view");
 	if (mount_crypt_stat->flags & ECRYPTFS_UNLINK_SIGS)
 		seq_printf(m, ",ecryptfs_unlink_sigs");
+	if (mount_crypt_stat->flags & ECRYPTFS_NO_SYMLINKS)
+		seq_printf(m, ",ecryptfs_no_symlinks");
 
 	return 0;
 }

@@ -184,7 +184,18 @@ int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
 	else
 		iput(lower_inode);
 	if (S_ISLNK(lower_inode->i_mode))
-		inode->i_op = &ecryptfs_symlink_iops;
+	{
+		struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
+			&ecryptfs_superblock_to_private(sb)->mount_crypt_stat;
+		if( mount_crypt_stat->flags & ECRYPTFS_NO_SYMLINKS )
+		{
+			rc = -EIO;
+			iput(lower_inode);
+			goto out;
+		}
+		else
+			inode->i_op = &ecryptfs_symlink_iops;
+	}
 	else if (S_ISDIR(lower_inode->i_mode))
 		inode->i_op = &ecryptfs_dir_iops;
 	if (S_ISDIR(lower_inode->i_mode))
@@ -211,7 +222,8 @@ enum { ecryptfs_opt_sig, ecryptfs_opt_ecryptfs_sig,
        ecryptfs_opt_passthrough, ecryptfs_opt_xattr_metadata,
        ecryptfs_opt_encrypted_view, ecryptfs_opt_fnek_sig,
        ecryptfs_opt_fn_cipher, ecryptfs_opt_fn_cipher_key_bytes,
-       ecryptfs_opt_unlink_sigs, ecryptfs_opt_err };
+       ecryptfs_opt_unlink_sigs, ecryptfs_opt_no_symlinks,
+       ecryptfs_opt_err };
 
 static const match_table_t tokens = {
 	{ecryptfs_opt_sig, "sig=%s"},
@@ -226,6 +238,7 @@ static const match_table_t tokens = {
 	{ecryptfs_opt_fn_cipher, "ecryptfs_fn_cipher=%s"},
 	{ecryptfs_opt_fn_cipher_key_bytes, "ecryptfs_fn_key_bytes=%u"},
 	{ecryptfs_opt_unlink_sigs, "ecryptfs_unlink_sigs"},
+	{ecryptfs_opt_no_symlinks, "ecryptfs_no_symlinks"},
 	{ecryptfs_opt_err, NULL}
 };
 
@@ -354,6 +367,10 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 		case ecryptfs_opt_passthrough:
 			mount_crypt_stat->flags |=
 				ECRYPTFS_PLAINTEXT_PASSTHROUGH_ENABLED;
+			break;
+		case ecryptfs_opt_no_symlinks:
+			mount_crypt_stat->flags |=
+				ECRYPTFS_NO_SYMLINKS;
 			break;
 		case ecryptfs_opt_xattr_metadata:
 			mount_crypt_stat->flags |=
