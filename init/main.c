@@ -6,7 +6,7 @@
  *  GK 2/5/95  -  Changed to support mounting root fs via NFS
  *  Added initrd & change_root: Werner Almesberger & Hans Lermen, Feb '96
  *  Moan early if gcc is old, avoiding bogus kernels - Paul Gortmaker, May '96
- *  Simplified starting of init:  Michael A. Griffith <grif@acm.org>
+ *  Simplified starting of init:  Michael A. Griffith <grif@acm.org> 
  */
 
 #include <linux/types.h>
@@ -184,7 +184,6 @@ static int __init set_reset_devices(char *str)
 __setup("reset_devices", set_reset_devices);
 
 static char * argv_init[MAX_INIT_ARGS+2] = { "init", NULL, };
-static char * argv_firmware_upgrade[MAX_INIT_ARGS+2];
 char * envp_init[MAX_INIT_ENVS+2] = { "HOME=/", "TERM=linux", NULL, };
 static const char *panic_later, *panic_param;
 
@@ -787,37 +786,6 @@ static void __init do_pre_smp_initcalls(void)
 		do_one_initcall(*fn);
 }
 
-#ifdef CONFIG_FIRMWARE_UPGRADE
-
-static void run_firmware_upgrade(char *firmware)
-{
-	char *argv_firmware_upgrade[] = {
-		"/bin/opkg-cl",
-		"--reboot",
-		"--remove-firmware",
-		"firmware-upgrade",
-		firmware,
-		0
-	};
-
-	kernel_execve("/bin/opkg-cl", argv_firmware_upgrade, 0);
-}
-
-static void do_firmware_upgrade()
-{
-	struct stat statbuf;
-	if( sys_newstat(CONFIG_FIRMWARE_FILE, &statbuf) || !S_ISREG(statbuf.st_mode) )
-	{
-		printk(KERN_INFO "Unable to find firmware. Do normal boot.\n");
-		return;
-	}
-
-	printk(KERN_INFO "New firmware found. Starting upgrade...\n");
-	run_firmware_upgrade(CONFIG_FIRMWARE_FILE);
-	printk(KERN_ERR "Firmware upgrade failed.\n");
-}
-#endif
-
 static void run_init_process(char *init_filename)
 {
 	argv_init[0] = init_filename;
@@ -845,10 +813,6 @@ static noinline int init_post(void)
 	(void) sys_dup(0);
 
 	current->signal->flags |= SIGNAL_UNKILLABLE;
-
-#ifdef CONFIG_FIRMWARE_UPGRADE
-	do_firmware_upgrade();
-#endif
 
 	if (ramdisk_execute_command) {
 		run_init_process(ramdisk_execute_command);
