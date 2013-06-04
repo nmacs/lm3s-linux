@@ -283,3 +283,16 @@ config NOMMU_INITIAL_TRIM_EXCESS
 	  of 1 says that all excess pages should be trimmed.
 
 	  See Documentation/nommu-mmap.txt for more information.
+
+config NOMMU_EXEC_POOL
+	bool "Enable execution pool"
+	depends on !MMU
+	default n
+	help
+	  On no-mmu platform memory fragmentation may prevent process from running.
+	  Execution pool is designed to prevent such condition.
+
+config NOMMU_EXEC_POOL_SIZE
+	int "Execution pool size in KiB"
+	default 1024
+	depends on NOMMU_EXEC_POOL

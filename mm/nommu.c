@@ -566,6 +566,11 @@ static void __put_nommu_region(struct vm_region *region)
 
 		/* IO memory and memory shared directly out of the pagecache
 		 * from ramfs/tmpfs mustn't be released here */
+#ifdef CONFIG_NOMMU_EXEC_POOL
+		if (region->vm_flags & VM_EXEC) {
+			exec_pool_free((void*)region->vm_start);
+		} else
+#endif
 		if (region->vm_flags & VM_MAPPED_COPY) {
 			kdebug("free series");
 			free_page_series(region->vm_start, region->vm_top);
@@ -1081,6 +1086,15 @@ static int do_mmap_private(struct vm_area_struct *vma,
 
 	rlen = PAGE_ALIGN(len);
 
+#ifdef CONFIG_NOMMU_EXEC_POOL
+	if (vma->vm_flags & VM_EXEC) {
+		base = exec_pool_allocate(rlen);
+		if (base <= 0)
+			goto enomem;
+		total = rlen >> PAGE_SHIFT;
+	} else
+	{
+#endif
 	/* allocate some memory to hold the mapping
 	 * - note that this may not return a page-aligned address if the object
 	 *   we're allocating is smaller than a page
@@ -1115,6 +1129,9 @@ static int do_mmap_private(struct vm_area_struct *vma,
 		set_page_refcounted(&pages[point]);
 
 	base = page_address(pages);
+#ifdef CONFIG_NOMMU_EXEC_POOL
+	}
+#endif
 	region->vm_flags = vma->vm_flags |= VM_MAPPED_COPY;
 	region->vm_start = (unsigned long) base;
 	region->vm_end   = region->vm_start + rlen;
@@ -1148,7 +1165,15 @@ static int do_mmap_private(struct vm_area_struct *vma,
 	return 0;
 
 error_free:
+#ifdef CONFIG_NOMMU_EXEC_POOL
+	if (region->vm_flags & VM_EXEC) {
+		exec_pool_free((void*)region->vm_start);
+	} else {
+#endif
 	free_page_series(region->vm_start, region->vm_end);
+#ifdef CONFIG_NOMMU_EXEC_POOL
+	}
+#endif
 	region->vm_start = vma->vm_start = 0;
 	region->vm_end   = vma->vm_end = 0;
 	region->vm_top   = 0;
@@ -1157,7 +1182,15 @@ error_free:
 enomem:
 	printk("Allocation of length %lu from process %d (%s) failed\n",
 	       len, current->pid, current->comm);
+#ifdef CONFIG_NOMMU_EXEC_POOL
+	if (region->vm_flags & VM_EXEC) {
+		exec_pool_show_free_space();
+	} else {
+#endif
 	show_free_areas();
+#ifdef CONFIG_NOMMU_EXEC_POOL
+	}
+#endif
 	return -ENOMEM;
 }
 

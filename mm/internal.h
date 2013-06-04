@@ -251,6 +251,12 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 #define ZONE_RECLAIM_SUCCESS	1
 #endif
 
+#ifdef CONFIG_NOMMU_EXEC_POOL
+extern void* exec_pool_allocate(size_t size);
+extern void  exec_pool_free(void *ptr);
+extern void  exec_pool_show_free_space(void);
+#endif
+
 extern int hwpoison_filter(struct page *p);
 
 extern u32 hwpoison_filter_dev_major;
