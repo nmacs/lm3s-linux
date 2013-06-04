@@ -595,7 +595,7 @@ static void protect_vma(struct vm_area_struct *vma, unsigned long flags)
 	long start = vma->vm_start & PAGE_MASK;
 	while (start < vma->vm_end) {
 		protect_page(mm, start, flags);
-		start += MPU_PAGE_SIZE;
+		start += PAGE_SIZE;
 	}
 	update_protections(mm);
 #endif
