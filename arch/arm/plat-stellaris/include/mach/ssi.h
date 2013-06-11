@@ -192,6 +192,8 @@
 #define SSI_IM_RT                 (1 << 1)  /* Bit 1:  SSI Receive Time-Out Interrupt Mask */
 #define SSI_IM_RX                 (1 << 2)  /* Bit 2:  SSI Receive FIFO Interrupt Mask */
 #define SSI_IM_TX                 (1 << 3)  /* Bit 3:  SSI Transmit FIFO Interrupt Mask */
+#define SSI_IM_DMARX              (1 << 4)  /* Bit 4:  SSI Receive DMA Interrupt Mask */
+#define SSI_IM_DMATX              (1 << 5)  /* Bit 5:  SSI Transmit DMA Interrupt Mask */
 
 /* SSI Raw Interrupt Status (SSIRIS), offset 0x018 */
 
@@ -199,6 +201,8 @@
 #define SSI_RIS_RT                (1 << 1)  /* Bit 1:  SSI Receive Time-Out Raw Interrupt Status */
 #define SSI_RIS_RX                (1 << 2)  /* Bit 2:  SSI Receive FIFO Raw Interrupt Status */
 #define SSI_RIS_TX                (1 << 3)  /* Bit 3:  SSI Transmit FIFO Raw Interrupt Status */
+#define SSI_RIS_DMARX             (1 << 4)  /* Bit 4:  SSI Receive DMA Raw Interrupt Status */
+#define SSI_RIS_DMATX             (1 << 5)  /* Bit 5:  SSI Transmit DMA Raw Interrupt Status */
 
 /* SSI DMA Control (SSIDMACTL), offset 0x024 */
 
@@ -216,6 +220,8 @@
 
 #define SSI_ICR_ROR               (1 << 0)  /* Bit 0: SSI Receive Overrun Interrupt Clear */
 #define SSI_ICR_RT                (1 << 1)  /* Bit 1: SSI Receive Time-Out Interrupt Clear */
+#define SSI_ICR_DMARX             (1 << 4)  /* Bit 4: SSI Receive DMA Interrupt Clear */
+#define SSI_ICR_DMATX             (1 << 5)  /* Bit 5: SSI Transmit DMA Interrupt Clear */
 
 /* SSI Peripheral Identification n (SSIPERIPHIDn), offset 0xfd0-0xfec */
 

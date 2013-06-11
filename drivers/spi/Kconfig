@@ -124,12 +124,12 @@ config SPI_IMX
 	  This enables using the Freescale i.MX SPI controllers in master
 	  mode.
 
-config SPI_LM3S
-  bool "Texas Instruments LM3S SPI controller"
-  depends on ARCH_LM3S1D21
+config SPI_STELLARIS
+  bool "Texas Instruments Stellaris SPI controller"
+  depends on PLAT_STELLARIS
   select SPI_BITBANG
   help
-    This enables using the Texas Instruments LM3S SPI controllers in master
+    This enables using the Texas Instruments Stellaris SPI controllers in master
     mode.
 
 config SPI_LM70_LLP

@@ -3,7 +3,7 @@
  *
  * Based on:
  *
- * drivers/spi/spi_lm3s.c
+ * drivers/spi/spi_stellaris.c
  *
  * Copyright 2004-2007 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright (C) 2008 Juergen Beisert
@@ -125,18 +125,18 @@ static void ssi_disable(struct spi_stellaris_data *priv)
 {
   uint32_t regval;
 
-  regval = ssi_getreg(priv, LM3S_SSI_CR1_OFFSET);
+  regval = ssi_getreg(priv, STLR_SSI_CR1_OFFSET);
   regval &= ~SSI_CR1_SSE;
-  ssi_putreg(priv, LM3S_SSI_CR1_OFFSET, regval);
+  ssi_putreg(priv, STLR_SSI_CR1_OFFSET, regval);
 }
 
 /***************************************************************************/
 
 static void ssi_enable(struct spi_stellaris_data *priv)
 {
-  uint32_t regval = ssi_getreg(priv, LM3S_SSI_CR1_OFFSET);
+  uint32_t regval = ssi_getreg(priv, STLR_SSI_CR1_OFFSET);
   regval  |= SSI_CR1_SSE;
-  ssi_putreg(priv, LM3S_SSI_CR1_OFFSET, regval);
+  ssi_putreg(priv, STLR_SSI_CR1_OFFSET, regval);
 }
 
 /***************************************************************************/
@@ -268,14 +268,14 @@ static int spi_config(struct spi_stellaris_config *config,
 static void __sram ssi_txnull(struct spi_stellaris_data *priv)
 {
   dev_vdbg(&priv->bitbang.master->dev, "TX: ->0x0000\n");
-  ssi_putreg(priv, LM3S_SSI_DR_OFFSET, 0x0000);
+  ssi_putreg(priv, STLR_SSI_DR_OFFSET, 0x0000);
 }
 
 static void __sram ssi_txuint16(struct spi_stellaris_data *priv)
 {
   uint16_t *ptr    = (uint16_t*)priv->txbuffer;
   dev_vdbg(&priv->bitbang.master->dev, "TX: %p->%04x\n", ptr, *ptr);
-  ssi_putreg(priv, LM3S_SSI_DR_OFFSET, (uint32_t)(*ptr++));
+  ssi_putreg(priv, STLR_SSI_DR_OFFSET, (uint32_t)(*ptr++));
   priv->txbuffer = (void*)ptr;
 }
 
@@ -283,20 +283,20 @@ static void __sram ssi_txuint8(struct spi_stellaris_data *priv)
 {
   uint8_t *ptr   = (uint8_t*)priv->txbuffer;
   dev_vdbg(&priv->bitbang.master->dev, "TX: %p->%02x\n", ptr, *ptr);
-  ssi_putreg(priv, LM3S_SSI_DR_OFFSET, (uint32_t)(*ptr++));
+  ssi_putreg(priv, STLR_SSI_DR_OFFSET, (uint32_t)(*ptr++));
   priv->txbuffer = (void*)ptr;
 }
 
 static void __sram ssi_rxnull(struct spi_stellaris_data *priv)
 {
-  uint32_t regval  = ssi_getreg(priv, LM3S_SSI_DR_OFFSET);
+  uint32_t regval  = ssi_getreg(priv, STLR_SSI_DR_OFFSET);
   dev_vdbg(&priv->bitbang.master->dev, "RX: discard %04x\n", regval);
 }
 
 static void __sram ssi_rxuint16(struct spi_stellaris_data *priv)
 {
   uint16_t *ptr    = (uint16_t*)priv->rxbuffer;
-  *ptr           = (uint16_t)ssi_getreg(priv, LM3S_SSI_DR_OFFSET);
+  *ptr           = (uint16_t)ssi_getreg(priv, STLR_SSI_DR_OFFSET);
   dev_vdbg(&priv->bitbang.master->dev, "RX: %p<-%04x\n", ptr, *ptr);
   priv->rxbuffer = (void*)(++ptr);
 }
@@ -304,7 +304,7 @@ static void __sram ssi_rxuint16(struct spi_stellaris_data *priv)
 static void __sram ssi_rxuint8(struct spi_stellaris_data *priv)
 {
   uint8_t *ptr   = (uint8_t*)priv->rxbuffer;
-  *ptr           = (uint8_t)ssi_getreg(priv, LM3S_SSI_DR_OFFSET);
+  *ptr           = (uint8_t)ssi_getreg(priv, STLR_SSI_DR_OFFSET);
   dev_vdbg(&priv->bitbang.master->dev, "RX: %p<-%02x\n", ptr, *ptr);
   priv->rxbuffer = (void*)(++ptr);
 }
@@ -314,14 +314,14 @@ static void __sram ssi_rxuint8(struct spi_stellaris_data *priv)
 
 static inline int ssi_txfifofull(struct spi_stellaris_data *priv)
 {
-  return (ssi_getreg(priv, LM3S_SSI_SR_OFFSET) & SSI_SR_TNF) == 0;
+  return (ssi_getreg(priv, STLR_SSI_SR_OFFSET) & SSI_SR_TNF) == 0;
 }
 
 /***************************************************************************/
 
 static inline int ssi_rxfifoempty(struct spi_stellaris_data *priv)
 {
-  return (ssi_getreg(priv, LM3S_SSI_SR_OFFSET) & SSI_SR_RNE) == 0;
+  return (ssi_getreg(priv, STLR_SSI_SR_OFFSET) & SSI_SR_RNE) == 0;
 }
 
 /***************************************************************************/
@@ -366,7 +366,7 @@ static int __sram ssi_performtx(struct spi_stellaris_data *priv)
     /* Check again... Now have all of the Tx words been sent? */
 
 #ifndef POLLING_MODE
-    regval = ssi_getreg(priv, LM3S_SSI_IM_OFFSET);
+    regval = ssi_getreg(priv, STLR_SSI_IM_OFFSET);
     if (priv->ntxwords > 0)
     {
       /* No.. Enable the Tx FIFO interrupt.  This interrupt occurs
@@ -382,7 +382,7 @@ static int __sram ssi_performtx(struct spi_stellaris_data *priv)
 
       regval &= ~(SSI_IM_TX|SSI_RIS_ROR);
     }
-    ssi_putreg(priv, LM3S_SSI_IM_OFFSET, regval);
+    ssi_putreg(priv, STLR_SSI_IM_OFFSET, regval);
 #endif
   }
 
@@ -413,7 +413,7 @@ static void __sram ssi_performrx(struct spi_stellaris_data *priv)
    * transfer will be driven by Tx FIFO interrupts.  The final part
    * of the transfer is driven by Rx FIFO interrupts only.
    */
-  regval = ssi_getreg(priv, LM3S_SSI_IM_OFFSET);
+  regval = ssi_getreg(priv, STLR_SSI_IM_OFFSET);
   if (priv->ntxwords == 0 && priv->nrxwords < priv->nwords)
   {
       /* There are no more outgoing words to send, but there are
@@ -433,7 +433,7 @@ static void __sram ssi_performrx(struct spi_stellaris_data *priv)
     regval &= ~(SSI_IM_RX|SSI_IM_RT);
   }
 
-  ssi_putreg(priv, LM3S_SSI_IM_OFFSET, regval);
+  ssi_putreg(priv, STLR_SSI_IM_OFFSET, regval);
 #endif
 }
 #endif
@@ -444,7 +444,7 @@ static int __sram spi_transfer_step(struct spi_stellaris_data *priv)
 {
   dev_vdbg(&priv->bitbang.master->dev, "%s: ntxwords %d, nrxwords %d, nwords %d, SR %08x\n",
           __func__, priv->ntxwords, priv->nrxwords, priv->nwords,
-          ssi_getreg(priv, LM3S_SSI_SR_OFFSET));
+          ssi_getreg(priv, STLR_SSI_SR_OFFSET));
 
 #ifdef CONFIG_STELLARIS_DMA
 		/* Check if the transfer is complete */
@@ -467,12 +467,15 @@ static int __sram spi_transfer_step(struct spi_stellaris_data *priv)
 	dev_vdbg(&priv->bitbang.master->dev, "%s: xfer_size %u\n", __func__, priv->xfer_size);
 
 	dma_setup_xfer(priv->dma_rx_channel, priv->dma_rx_buffer,
-								 priv->base + LM3S_SSI_DR_OFFSET, priv->xfer_size, priv->dma_rx_flags);
-	dma_setup_xfer(priv->dma_tx_channel, priv->base + LM3S_SSI_DR_OFFSET,
+								 priv->base + STLR_SSI_DR_OFFSET, priv->xfer_size, priv->dma_rx_flags);
+	dma_setup_xfer(priv->dma_tx_channel, priv->base + STLR_SSI_DR_OFFSET,
 								 priv->dma_tx_buffer, priv->xfer_size, priv->dma_tx_flags);
 	dma_start_xfer(priv->dma_rx_channel);
 	dma_start_xfer(priv->dma_tx_channel);
-#else
+#ifdef CONFIG_ARCH_TM4C
+	putreg32(SSI_DMACTL_RXDMAE | SSI_DMACTL_TXDMAE, priv->base + STLR_SSI_DMACTL_OFFSET);
+#endif /* CONFIG_ARCH_TM4C */
+#else /* CONFIG_STELLARIS_DMA */
   /* Handle outgoing Tx FIFO transfers */
   ssi_performtx(priv);
 
@@ -481,25 +484,25 @@ static int __sram spi_transfer_step(struct spi_stellaris_data *priv)
 
   dev_vdbg(&priv->bitbang.master->dev, "ntxwords: %d nrxwords: %d nwords: %d SR: %08x IM: %08x\n",
           priv->ntxwords, priv->nrxwords, priv->nwords,
-          ssi_getreg(priv, LM3S_SSI_SR_OFFSET),
-          ssi_getreg(priv, LM3S_SSI_IM_OFFSET));
+          ssi_getreg(priv, STLR_SSI_SR_OFFSET),
+          ssi_getreg(priv, STLR_SSI_IM_OFFSET));
 
 	/* Check if the transfer is complete */
   if (priv->nrxwords >= priv->nwords)
   {
 #ifndef POLLING_MODE
     /* Yes.. Disable all SSI interrupt sources */
-    ssi_putreg(priv, LM3S_SSI_IM_OFFSET, 0);
+    ssi_putreg(priv, STLR_SSI_IM_OFFSET, 0);
 
     /* Wake up the waiting thread */
     complete(&priv->xfer_done);
-#endif
+#endif /* POLLING_MODE */
 
     dev_dbg(&priv->bitbang.master->dev, "Transfer complete\n");
 
     return 0;
   }
-#endif
+#endif /* CONFIG_STELLARIS_DMA */
 
   return 1;
 }
@@ -510,16 +513,16 @@ static int __sram spi_transfer_step(struct spi_stellaris_data *priv)
 static irqreturn_t __sram spi_isr(int irq, void *dev_id)
 {
 	uint32_t regval;
-  int ntxd;
   struct spi_stellaris_data *priv = dev_id;
 
   dev_vdbg(&priv->bitbang.master->dev, "%s\n", __func__);
 
   /* Clear pending interrupts */
-  regval = ssi_getreg(priv, LM3S_SSI_RIS_OFFSET);
-  ssi_putreg(priv, LM3S_SSI_ICR_OFFSET, regval);
+  regval = ssi_getreg(priv, STLR_SSI_RIS_OFFSET);
+  ssi_putreg(priv, STLR_SSI_ICR_OFFSET, regval);
 
 #ifdef CONFIG_STELLARIS_DMA
+#if defined(CONFIG_ARCH_LM3S)
 	dma_ack_interrupt(priv->dma_tx_channel);
 
 	if( dma_ack_interrupt(priv->dma_rx_channel) )
@@ -534,6 +537,33 @@ static irqreturn_t __sram spi_isr(int irq, void *dev_id)
 
 		spi_transfer_step(priv);
 	}
+#elif defined(CONFIG_ARCH_TM4C)
+	if( regval & SSI_RIS_DMATX)
+	{
+		uint32_t regval2 = ssi_getreg(priv, STLR_SSI_DMACTL_OFFSET);
+		regval2 &= ~SSI_DMACTL_TXDMAE;
+		ssi_putreg(priv, STLR_SSI_DMACTL_OFFSET, regval2);
+		ssi_putreg(priv, STLR_SSI_ICR_OFFSET, SSI_ICR_DMATX);
+	}
+	
+	if( regval & SSI_RIS_DMARX )
+	{
+		uint32_t regval2 = ssi_getreg(priv, STLR_SSI_DMACTL_OFFSET);
+		regval2 &= ~SSI_DMACTL_RXDMAE;
+		ssi_putreg(priv, STLR_SSI_DMACTL_OFFSET, regval2);
+		ssi_putreg(priv, STLR_SSI_ICR_OFFSET, SSI_ICR_DMARX);
+
+		if( priv->rxbuffer )
+		{
+			dma_memcpy(priv->rxbuffer, priv->dma_rx_buffer, priv->xfer_size);
+			priv->rxbuffer = (char*)priv->rxbuffer + priv->xfer_size;
+		}
+		priv->nrxwords += priv->xfer_size;
+		priv->ntxwords -= priv->xfer_size;
+
+		spi_transfer_step(priv);
+	}
+#endif
 #else
 	spi_transfer_step(priv);
 #endif
@@ -599,13 +629,13 @@ static int __sram spi_transfer(struct spi_device *spi,
 #endif
 
   /* Set CR1 */
-  ssi_putreg(priv_master, LM3S_SSI_CR1_OFFSET, 0);
+  ssi_putreg(priv_master, STLR_SSI_CR1_OFFSET, 0);
 
   /* Set CPDVSR */
-  ssi_putreg(priv_master, LM3S_SSI_CPSR_OFFSET, dev_priv->cpsdvsr);
+  ssi_putreg(priv_master, STLR_SSI_CPSR_OFFSET, dev_priv->cpsdvsr);
 
   /* Set CR0 */
-  ssi_putreg(priv_master, LM3S_SSI_CR0_OFFSET, dev_priv->cr0);
+  ssi_putreg(priv_master, STLR_SSI_CR0_OFFSET, dev_priv->cr0);
 
 #ifndef POLLING_MODE
   init_completion(&priv_master->xfer_done);
@@ -669,7 +699,7 @@ static void spi_chipselect(struct spi_device *spi, int is_active)
 
 /***************************************************************************/
 
-static int spi_setup(struct spi_device *spi)
+static int stellaris_spi_setup(struct spi_device *spi)
 {
 	struct spi_stellaris_config *priv_dev;
 	struct spi_stellaris_data *priv_master;
@@ -744,7 +774,7 @@ static int __devinit spi_probe(struct platform_device *pdev)
   priv->bitbang.chipselect = spi_chipselect;
   priv->bitbang.setup_transfer = spi_setupxfer;
   priv->bitbang.txrx_bufs = spi_transfer;
-  priv->bitbang.master->setup = spi_setup;
+  priv->bitbang.master->setup = stellaris_spi_setup;
   priv->bitbang.master->cleanup = spi_cleanup;
   priv->bitbang.master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
@@ -786,7 +816,11 @@ static int __devinit spi_probe(struct platform_device *pdev)
   enable_ssi_clock();
 
 #ifdef CONFIG_STELLARIS_DMA
-	putreg32(SSI_DMACTL_RXDMAE | SSI_DMACTL_TXDMAE, priv->base + LM3S_SSI_DMACTL_OFFSET);
+#ifdef CONFIG_ARCH_TM4C
+	ssi_putreg(priv, STLR_SSI_IM_OFFSET, SSI_IM_DMARX | SSI_IM_DMATX);
+#else
+	putreg32(priv, STLR_SSI_DMACTL_OFFSET, SSI_DMACTL_RXDMAE | SSI_DMACTL_TXDMAE);
+#endif
 #endif
 
   ret = spi_bitbang_start(&priv->bitbang);
