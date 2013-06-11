@@ -1,0 +1,50 @@
+if ARCH_LM3S || ARCH_TM4C
+
+config PLAT_STELLARIS
+	bool
+	select CPU_V7M
+	select ARM_NVIC
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select ARM_THUMB
+
+menu "Texas Instruments Stellaris System-on-Chip"
+
+config DISABLE_TIME_ADJUST
+	bool "Disable time adjust"
+	default n
+	depends on MACH_UWIC
+
+config MPU
+	bool "Enable MPU"
+	default n
+	help
+	  Enable MPU support for Stellaris controllers
+
+config STELLARIS_DMA
+	bool "Enable DMA"
+	default n
+	help
+	  Enable DMA in STELLARIS drivers.
+
+config LEDS_TRIGGER_CPUIDLE
+	bool "CPU Idle LED Trigger"
+	default n
+	depends on CPU_IDLE
+	help
+	  Enable CPU Idle LED Trigger. LED is on while CPU is active.
+
+config COPY_TO_SRAM
+	bool "Copy some code and data to SRAM"
+	default n
+
+config COPY_TO_SRAM_SIZE
+	int "SRAM region size"
+	default 1024
+	depends on COPY_TO_SRAM
+
+endmenu
+
+endif

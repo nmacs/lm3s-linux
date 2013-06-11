@@ -49,9 +49,9 @@ static struct clocksource sysclk_clocksource = {
 static void enable_timer(unsigned int num)
 {
   uint32_t regval;
-  regval = lm3s_getreg32(LM3S_TIMER_GPTMCTL(num));
+  regval = getreg32(STLR_TIMER_GPTMCTL(num));
   regval |= TIMER_GPTMCTL_TAEN_MASK;
-  lm3s_putreg32(regval, LM3S_TIMER_GPTMCTL(num));
+  putreg32(regval, STLR_TIMER_GPTMCTL(num));
 }
 
 /***************************************************************************/
@@ -59,9 +59,9 @@ static void enable_timer(unsigned int num)
 static void disable_timer(unsigned int num)
 {
   uint32_t regval;
-  regval = lm3s_getreg32(LM3S_TIMER_GPTMCTL(num));
+  regval = getreg32(STLR_TIMER_GPTMCTL(num));
   regval &= ~TIMER_GPTMCTL_TAEN_MASK;
-  lm3s_putreg32(regval, LM3S_TIMER_GPTMCTL(num));
+  putreg32(regval, STLR_TIMER_GPTMCTL(num));
 }
 
 /***************************************************************************/
@@ -81,21 +81,21 @@ static void timer_set_mode(enum clock_event_mode mode,
   case CLOCK_EVT_MODE_PERIODIC:
     printk(KERN_DEBUG "%s\n", "\tCLOCK_EVT_MODE_PERIODIC");
     // Clear configuration register
-    lm3s_putreg32(0, LM3S_TIMER_GPTMCFG(0));
+    putreg32(0, STLR_TIMER_GPTMCFG(0));
     // Setup periodic timer with decrimenting counter
-    lm3s_putreg32(TIMER_GPTMTAMR_TAMR_PERIODIC, LM3S_TIMER_GPTMTAMR(0));
+    putreg32(TIMER_GPTMTAMR_TAMR_PERIODIC, STLR_TIMER_GPTMTAMR(0));
     // Set CONFIG_HZ interval
-    lm3s_putreg32(CLOCK_TICK_RATE / CONFIG_HZ, LM3S_TIMER_GPTMTAILR(0));
+    putreg32(CLOCK_TICK_RATE / CONFIG_HZ, STLR_TIMER_GPTMTAILR(0));
     // Enable timer interrupt
-    lm3s_putreg32(TIMER_GPTMIMR_TATOIM_MASK, LM3S_TIMER_GPTMIMR(0));
+    putreg32(TIMER_GPTMIMR_TATOIM_MASK, STLR_TIMER_GPTMIMR(0));
     // Enable timer
     enable_timer(0);
     break;
   case CLOCK_EVT_MODE_ONESHOT:
     printk(KERN_DEBUG "%s\n", "\tCLOCK_EVT_MODE_ONESHOT");
-    lm3s_putreg32(0, LM3S_TIMER_GPTMCFG(0));
+    putreg32(0, STLR_TIMER_GPTMCFG(0));
     // Setup one shot timer with decrimenting counter
-    lm3s_putreg32(TIMER_GPTMTAMR_TAMR_ONESHOT, LM3S_TIMER_GPTMTAMR(0));
+    putreg32(TIMER_GPTMTAMR_TAMR_ONESHOT, STLR_TIMER_GPTMTAMR(0));
 
     break;
 	case CLOCK_EVT_MODE_RESUME:
@@ -122,7 +122,7 @@ static int timer_set_next_event(unsigned long evt,
   }
 
   disable_timer(0);
-  lm3s_putreg32(evt, LM3S_TIMER_GPTMTAILR(0));
+  putreg32(evt, STLR_TIMER_GPTMTAILR(0));
   enable_timer(0);
 
   return 0;
@@ -147,7 +147,7 @@ static void __init clockevents_init(unsigned int irqn)
 
 static cycle_t clock_get_cycles(struct clocksource *cs)
 {
-  return lm3s_getreg32(LM3S_TIMER_GPTMTAR(1));
+  return getreg32(STLR_TIMER_GPTMTAR(1));
 }
 
 /***************************************************************************/
@@ -156,10 +156,10 @@ static void __init clocksource_init()
 {
   disable_timer(1);
 
-  lm3s_putreg32(0, LM3S_TIMER_GPTMCFG(1));
+  putreg32(0, STLR_TIMER_GPTMCFG(1));
   // Setup periodic timer with incrementing counter
-  lm3s_putreg32(TIMER_GPTMTAMR_TAMR_PERIODIC | TIMER_GPTMTAMR_TACDIR_UP, LM3S_TIMER_GPTMTAMR(1));
-  lm3s_putreg32(0xFFFFFFFF, LM3S_TIMER_GPTMTAILR(1));
+  putreg32(TIMER_GPTMTAMR_TAMR_PERIODIC | TIMER_GPTMTAMR_TACDIR_UP, STLR_TIMER_GPTMTAMR(1));
+  putreg32(0xFFFFFFFF, STLR_TIMER_GPTMTAILR(1));
   // Enable timer
   enable_timer(1);
 
@@ -181,7 +181,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
   if( evt == &sysclk_clockevent )
   {
     /* clear the interrupt */
-    lm3s_putreg32(TIMER_GPTMICR_TATOCINT_MASK, LM3S_TIMER_GPTMICR(0));
+    putreg32(TIMER_GPTMICR_TATOCINT_MASK, STLR_TIMER_GPTMICR(0));
     evt->event_handler(evt);
   }
   else
@@ -193,7 +193,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 /***************************************************************************/
 
 static struct irqaction timer_irqaction = {
-  .name     = "LM3S1D21 Timer Tick",
+  .name     = "Stellaris Timer Tick",
   .flags    = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
   .handler  = timer_interrupt,
   .dev_id   = &sysclk_clockevent,
@@ -201,16 +201,14 @@ static struct irqaction timer_irqaction = {
 
 /***************************************************************************/
 
-void __init lm3s1d21_timer_init(void)
+void __init stellaris_timer_init(void)
 {
   uint32_t regval;
 
-  regval = lm3s_getreg32(LM3S_SYSCON_RCGC1);
-  regval |= SYSCON_RCGC1_TIMER0; // Enable Timer0
-  regval |= SYSCON_RCGC1_TIMER1; // Enable Timer1
-  lm3s_putreg32(regval, LM3S_SYSCON_RCGC1);
+	timer_clock_ctrl(0, SYS_ENABLE_CLOCK);
+	timer_clock_ctrl(1, SYS_ENABLE_CLOCK);
 
-  setup_irq(LM3S1D21_TIMER0_IRQ, &timer_irqaction);
+  setup_irq(STLR_TIMER0_IRQ, &timer_irqaction);
   clocksource_init();
-  clockevents_init(LM3S1D21_TIMER0_IRQ);
+  clockevents_init(STLR_TIMER0_IRQ);
 }

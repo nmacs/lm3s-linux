@@ -269,12 +269,12 @@ config LEDS_ADP5520
 	  To compile this driver as a module, choose M here: the module will
 	  be called leds-adp5520.
 
-config LEDS_LM3S
-	tristate "LED Support for LM3S LEDs"
-	depends on LEDS_CLASS && ARCH_LM3S1D21
+config LEDS_STELLARIS
+	tristate "LED Support for Stellaris LEDs"
+	depends on LEDS_CLASS && PLAT_STELLARIS
 	help
 	  This option enables support for LEDs connected to GPIO lines
-	  on Texas Instruments LM3S series CPUs, such as the LM3S1D21.
+	  on Texas Instruments Stellaris series CPUs.
 
 comment "LED Triggers"
 

@@ -27,7 +27,7 @@
 //#define DEBUG
 //#define VERBOSE_DEBUG
 
-#ifndef CONFIG_LM3S_DMA
+#ifndef CONFIG_STELLARIS_DMA
 #  define POLLING_MODE
 #endif
 
@@ -47,25 +47,22 @@
 #include <linux/spi/spi_bitbang.h>
 #include <linux/types.h>
 
-#include <mach/lm3s_spi.h>
+#include <mach/spi.h>
 #include <mach/hardware.h>
 #include <mach/sram.h>
-
-#ifdef CONFIG_LM3S_DMA
-#  include <mach/dma.h>
-#endif
+#include <mach/dma.h>
 
 /***************************************************************************/
 
-#define DRIVER_NAME        "lm3s-spi"
-#define LM3S_TXFIFO_WORDS  8
-#define CONFIG_SSI_TXLIMIT (LM3S_TXFIFO_WORDS/2)
+#define DRIVER_NAME             "stellaris-spi"
+#define STELLARIS_TXFIFO_WORDS  8
+#define CONFIG_SSI_TXLIMIT      (STELLARIS_TXFIFO_WORDS/2)
 
 /***************************************************************************/
 /*                         Data structures                                 */
 /***************************************************************************/
 
-struct spi_lm3s_config {
+struct spi_stellaris_config {
   uint32_t cpsdvsr;
   uint32_t cr0;
   uint32_t gpio_chipselect;
@@ -77,7 +74,7 @@ struct spi_lm3s_config {
 
 /***************************************************************************/
 
-struct spi_lm3s_data {
+struct spi_stellaris_data {
   struct spi_bitbang bitbang;
 
   struct completion xfer_done;
@@ -92,7 +89,7 @@ struct spi_lm3s_data {
   int      nrxwords;            /* Number of words received on the Rx FIFO */
   int      nwords;              /* Number of words to be exchanged */
 
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 	uint32_t dma_rx_flags;
 	uint32_t dma_tx_flags;
 	uint32_t dma_rx_channel;
@@ -101,30 +98,30 @@ struct spi_lm3s_data {
 	void *dma_tx_buffer;
 	uint32_t xfer_size;
 #else
-  void  (*txword)(struct spi_lm3s_data *priv);
-  void  (*rxword)(struct spi_lm3s_data *priv);
+  void  (*txword)(struct spi_stellaris_data *priv);
+  void  (*rxword)(struct spi_stellaris_data *priv);
 #endif
 };
 
 /***************************************************************************/
 
-static inline uint32_t ssi_getreg(struct spi_lm3s_data *priv,
+static inline uint32_t ssi_getreg(struct spi_stellaris_data *priv,
                                      unsigned int offset)
 {
-  return lm3s_getreg32((uint32_t)priv->base + offset);
+  return getreg32((uint32_t)priv->base + offset);
 }
 
 /***************************************************************************/
 
-static inline void ssi_putreg(struct spi_lm3s_data *priv,
+static inline void ssi_putreg(struct spi_stellaris_data *priv,
                                  unsigned int offset, uint32_t value)
 {
-  lm3s_putreg32(value, (uint32_t)priv->base + offset);
+  putreg32(value, (uint32_t)priv->base + offset);
 }
 
 /***************************************************************************/
 
-static void ssi_disable(struct spi_lm3s_data *priv)
+static void ssi_disable(struct spi_stellaris_data *priv)
 {
   uint32_t regval;
 
@@ -135,7 +132,7 @@ static void ssi_disable(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
-static void ssi_enable(struct spi_lm3s_data *priv)
+static void ssi_enable(struct spi_stellaris_data *priv)
 {
   uint32_t regval = ssi_getreg(priv, LM3S_SSI_CR1_OFFSET);
   regval  |= SSI_CR1_SSE;
@@ -146,25 +143,19 @@ static void ssi_enable(struct spi_lm3s_data *priv)
 
 static void enable_ssi_clock(void)
 {
-  uint32_t regval;
-  regval = lm3s_getreg32(LM3S_SYSCON_RCGC1);
-  regval |= SYSCON_RCGC1_SSI0;
-  lm3s_putreg32(regval, LM3S_SYSCON_RCGC1);
+  ssi_clock_ctrl(0, SYS_ENABLE_CLOCK);
 }
 
 /***************************************************************************/
 
 static void disable_ssi_clock(void)
 {
-  uint32_t regval;
-  regval = lm3s_getreg32(LM3S_SYSCON_RCGC1);
-  regval &= ~SYSCON_RCGC1_SSI0;
-  lm3s_putreg32(regval, LM3S_SYSCON_RCGC1);
+  ssi_clock_ctrl(0, SYS_DISABLE_CLOCK);
 }
 
 /***************************************************************************/
 
-static void ssi_setmode(struct spi_lm3s_config *config, uint32_t mode)
+static void ssi_setmode(struct spi_stellaris_config *config, uint32_t mode)
 {
   if (mode & SPI_CPHA)
     config->cr0 |= SSI_CR0_SPH;
@@ -179,7 +170,7 @@ static void ssi_setmode(struct spi_lm3s_config *config, uint32_t mode)
 
 /***************************************************************************/
 
-static void ssi_setbits(struct spi_lm3s_config *config, uint32_t bits_per_word)
+static void ssi_setbits(struct spi_stellaris_config *config, uint32_t bits_per_word)
 {
   if (bits_per_word >=4 && bits_per_word <= 16)
   {
@@ -190,7 +181,7 @@ static void ssi_setbits(struct spi_lm3s_config *config, uint32_t bits_per_word)
 
 /***************************************************************************/
 
-static void ssi_setfrequency(struct spi_lm3s_config *config, uint32_t frequency)
+static void ssi_setfrequency(struct spi_stellaris_config *config, uint32_t frequency)
 {
   uint32_t maxdvsr;
   uint32_t cpsdvsr;
@@ -254,7 +245,7 @@ static void ssi_setfrequency(struct spi_lm3s_config *config, uint32_t frequency)
 
 /***************************************************************************/
 
-static int lm3s_config(struct spi_lm3s_config *config,
+static int spi_config(struct spi_stellaris_config *config,
                        uint32_t mode, uint32_t bits_per_word, uint32_t speed_hz)
 {
   config->cr0 = 0;
@@ -273,14 +264,14 @@ static int lm3s_config(struct spi_lm3s_config *config,
 
 /***************************************************************************/
 
-#ifndef CONFIG_LM3S_DMA
-static void __sram ssi_txnull(struct spi_lm3s_data *priv)
+#ifndef CONFIG_STELLARIS_DMA
+static void __sram ssi_txnull(struct spi_stellaris_data *priv)
 {
   dev_vdbg(&priv->bitbang.master->dev, "TX: ->0x0000\n");
   ssi_putreg(priv, LM3S_SSI_DR_OFFSET, 0x0000);
 }
 
-static void __sram ssi_txuint16(struct spi_lm3s_data *priv)
+static void __sram ssi_txuint16(struct spi_stellaris_data *priv)
 {
   uint16_t *ptr    = (uint16_t*)priv->txbuffer;
   dev_vdbg(&priv->bitbang.master->dev, "TX: %p->%04x\n", ptr, *ptr);
@@ -288,7 +279,7 @@ static void __sram ssi_txuint16(struct spi_lm3s_data *priv)
   priv->txbuffer = (void*)ptr;
 }
 
-static void __sram ssi_txuint8(struct spi_lm3s_data *priv)
+static void __sram ssi_txuint8(struct spi_stellaris_data *priv)
 {
   uint8_t *ptr   = (uint8_t*)priv->txbuffer;
   dev_vdbg(&priv->bitbang.master->dev, "TX: %p->%02x\n", ptr, *ptr);
@@ -296,13 +287,13 @@ static void __sram ssi_txuint8(struct spi_lm3s_data *priv)
   priv->txbuffer = (void*)ptr;
 }
 
-static void __sram ssi_rxnull(struct spi_lm3s_data *priv)
+static void __sram ssi_rxnull(struct spi_stellaris_data *priv)
 {
   uint32_t regval  = ssi_getreg(priv, LM3S_SSI_DR_OFFSET);
   dev_vdbg(&priv->bitbang.master->dev, "RX: discard %04x\n", regval);
 }
 
-static void __sram ssi_rxuint16(struct spi_lm3s_data *priv)
+static void __sram ssi_rxuint16(struct spi_stellaris_data *priv)
 {
   uint16_t *ptr    = (uint16_t*)priv->rxbuffer;
   *ptr           = (uint16_t)ssi_getreg(priv, LM3S_SSI_DR_OFFSET);
@@ -310,7 +301,7 @@ static void __sram ssi_rxuint16(struct spi_lm3s_data *priv)
   priv->rxbuffer = (void*)(++ptr);
 }
 
-static void __sram ssi_rxuint8(struct spi_lm3s_data *priv)
+static void __sram ssi_rxuint8(struct spi_stellaris_data *priv)
 {
   uint8_t *ptr   = (uint8_t*)priv->rxbuffer;
   *ptr           = (uint8_t)ssi_getreg(priv, LM3S_SSI_DR_OFFSET);
@@ -321,22 +312,22 @@ static void __sram ssi_rxuint8(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
-static inline int ssi_txfifofull(struct spi_lm3s_data *priv)
+static inline int ssi_txfifofull(struct spi_stellaris_data *priv)
 {
   return (ssi_getreg(priv, LM3S_SSI_SR_OFFSET) & SSI_SR_TNF) == 0;
 }
 
 /***************************************************************************/
 
-static inline int ssi_rxfifoempty(struct spi_lm3s_data *priv)
+static inline int ssi_rxfifoempty(struct spi_stellaris_data *priv)
 {
   return (ssi_getreg(priv, LM3S_SSI_SR_OFFSET) & SSI_SR_RNE) == 0;
 }
 
 /***************************************************************************/
 
-#ifndef CONFIG_LM3S_DMA
-static int __sram ssi_performtx(struct spi_lm3s_data *priv)
+#ifndef CONFIG_STELLARIS_DMA
+static int __sram ssi_performtx(struct spi_stellaris_data *priv)
 {
 #ifndef POLLING_MODE
   uint32_t regval;
@@ -400,7 +391,7 @@ static int __sram ssi_performtx(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
-static void __sram ssi_performrx(struct spi_lm3s_data *priv)
+static void __sram ssi_performrx(struct spi_stellaris_data *priv)
 {
 #ifndef POLLING_MODE
   uint32_t regval;
@@ -449,13 +440,13 @@ static void __sram ssi_performrx(struct spi_lm3s_data *priv)
 
 /***************************************************************************/
 
-static int __sram spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
+static int __sram spi_transfer_step(struct spi_stellaris_data *priv)
 {
   dev_vdbg(&priv->bitbang.master->dev, "%s: ntxwords %d, nrxwords %d, nwords %d, SR %08x\n",
           __func__, priv->ntxwords, priv->nrxwords, priv->nwords,
           ssi_getreg(priv, LM3S_SSI_SR_OFFSET));
 
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 		/* Check if the transfer is complete */
   if (priv->ntxwords == 0)
   {
@@ -516,11 +507,11 @@ static int __sram spi_lm3s_transfer_step(struct spi_lm3s_data *priv)
 /***************************************************************************/
 
 #ifndef POLLING_MODE
-static irqreturn_t __sram spi_lm3s_isr(int irq, void *dev_id)
+static irqreturn_t __sram spi_isr(int irq, void *dev_id)
 {
 	uint32_t regval;
   int ntxd;
-  struct spi_lm3s_data *priv = dev_id;
+  struct spi_stellaris_data *priv = dev_id;
 
   dev_vdbg(&priv->bitbang.master->dev, "%s\n", __func__);
 
@@ -528,7 +519,7 @@ static irqreturn_t __sram spi_lm3s_isr(int irq, void *dev_id)
   regval = ssi_getreg(priv, LM3S_SSI_RIS_OFFSET);
   ssi_putreg(priv, LM3S_SSI_ICR_OFFSET, regval);
 
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 	dma_ack_interrupt(priv->dma_tx_channel);
 
 	if( dma_ack_interrupt(priv->dma_rx_channel) )
@@ -541,10 +532,10 @@ static irqreturn_t __sram spi_lm3s_isr(int irq, void *dev_id)
 		priv->nrxwords += priv->xfer_size;
 		priv->ntxwords -= priv->xfer_size;
 
-		spi_lm3s_transfer_step(priv);
+		spi_transfer_step(priv);
 	}
 #else
-	spi_lm3s_transfer_step(priv);
+	spi_transfer_step(priv);
 #endif
 
   return IRQ_HANDLED;
@@ -553,11 +544,11 @@ static irqreturn_t __sram spi_lm3s_isr(int irq, void *dev_id)
 
 /***************************************************************************/
 
-static int __sram spi_lm3s_transfer(struct spi_device *spi,
+static int __sram spi_transfer(struct spi_device *spi,
         struct spi_transfer *transfer)
 {
-  struct spi_lm3s_data *priv_master = spi_master_get_devdata(spi->master);
-  struct spi_lm3s_config *dev_priv = spi_get_ctldata(spi);
+  struct spi_stellaris_data *priv_master = spi_master_get_devdata(spi->master);
+  struct spi_stellaris_config *dev_priv = spi_get_ctldata(spi);
 
   dev_dbg(&spi->dev, "%s: tx_buf %p, rx_buf %p, len %u, cr0 0x%x, cpsdvsr 0x%x\n", __func__,
      transfer->tx_buf, transfer->rx_buf, transfer->len,
@@ -571,7 +562,7 @@ static int __sram spi_lm3s_transfer(struct spi_device *spi,
   priv_master->nrxwords     = 0;                          /* Number of words received */
   priv_master->nwords       = transfer->len;              /* Total number of exchanges */
 
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 	priv_master->dma_tx_flags = DMA_XFER_MEMORY_TO_DEVICE;
 	priv_master->dma_rx_flags = DMA_XFER_DEVICE_TO_MEMORY;
 
@@ -623,9 +614,9 @@ static int __sram spi_lm3s_transfer(struct spi_device *spi,
   ssi_enable(priv_master);
 
 #ifndef POLLING_MODE
-  spi_lm3s_transfer_step(priv_master);
+  spi_transfer_step(priv_master);
 #else
-  while( spi_lm3s_transfer_step(priv_master) ) {};
+  while( spi_transfer_step(priv_master) ) {};
 #endif
 
 #ifndef POLLING_MODE
@@ -639,10 +630,10 @@ static int __sram spi_lm3s_transfer(struct spi_device *spi,
 
 /***************************************************************************/
 
-static int spi_lm3s_setupxfer(struct spi_device *spi,
+static int spi_setupxfer(struct spi_device *spi,
          struct spi_transfer *t)
 {
-  struct spi_lm3s_config *priv_dev = spi_get_ctldata(spi);
+  struct spi_stellaris_config *priv_dev = spi_get_ctldata(spi);
 
   uint32_t mode = spi->mode;
   uint32_t bits_per_word = t ? t->bits_per_word : spi->bits_per_word;
@@ -655,16 +646,16 @@ static int spi_lm3s_setupxfer(struct spi_device *spi,
 
   dev_dbg(&spi->dev, "%s speed_hz %i, mode %i\n", __func__, speed_hz, mode);
 
-  lm3s_config(priv_dev, mode, bits_per_word, speed_hz);
+  spi_config(priv_dev, mode, bits_per_word, speed_hz);
 
   return 0;
 }
 
 /***************************************************************************/
 
-static void spi_lm3s_chipselect(struct spi_device *spi, int is_active)
+static void spi_chipselect(struct spi_device *spi, int is_active)
 {
-  struct spi_lm3s_config *priv_dev = spi_get_ctldata(spi);
+  struct spi_stellaris_config *priv_dev = spi_get_ctldata(spi);
 
   int active = is_active != BITBANG_CS_INACTIVE;
   int dev_is_lowactive = !(spi->mode & SPI_CS_HIGH);
@@ -673,20 +664,20 @@ static void spi_lm3s_chipselect(struct spi_device *spi, int is_active)
   dev_dbg(&spi->dev, "%s: cs %i [0x%X], value %i\n", __func__,
           spi->chip_select, priv_dev->gpio_chipselect, value);
 
-  lm3s_gpiowrite(priv_dev->gpio_chipselect, value);
+  gpiowrite(priv_dev->gpio_chipselect, value);
 }
 
 /***************************************************************************/
 
-static int spi_lm3s_setup(struct spi_device *spi)
+static int spi_setup(struct spi_device *spi)
 {
-	struct spi_lm3s_config *priv_dev;
-	struct spi_lm3s_data *priv_master;
+	struct spi_stellaris_config *priv_dev;
+	struct spi_stellaris_data *priv_master;
 
   if( spi->chip_select >= spi->master->num_chipselect )
     return -EINVAL;
 
-  priv_dev = kmalloc(sizeof(struct spi_lm3s_config), GFP_KERNEL);
+  priv_dev = kmalloc(sizeof(struct spi_stellaris_config), GFP_KERNEL);
   if( priv_dev == 0 )
     return -ENOMEM;
 
@@ -695,8 +686,8 @@ static int spi_lm3s_setup(struct spi_device *spi)
   spi_set_ctldata(spi, priv_dev);
 
   priv_dev->gpio_chipselect = priv_master->chipselect[spi->chip_select];
-  lm3s_config(priv_dev, spi->mode, spi->bits_per_word, spi->max_speed_hz);
-  spi_lm3s_chipselect(spi, BITBANG_CS_INACTIVE);
+  spi_config(priv_dev, spi->mode, spi->bits_per_word, spi->max_speed_hz);
+  spi_chipselect(spi, BITBANG_CS_INACTIVE);
 
   dev_dbg(&spi->dev, "%s: mode %d, %u bpw, %d hz\n", __func__,
      spi->mode, spi->bits_per_word, spi->max_speed_hz);
@@ -706,55 +697,55 @@ static int spi_lm3s_setup(struct spi_device *spi)
 
 /***************************************************************************/
 
-static void spi_lm3s_cleanup(struct spi_device *spi)
+static void spi_cleanup(struct spi_device *spi)
 {
   kfree(spi_get_ctldata(spi));
 }
 
 /***************************************************************************/
 
-static int __devinit spi_lm3s_probe(struct platform_device *pdev)
+static int __devinit spi_probe(struct platform_device *pdev)
 {
-  struct spi_lm3s_master *lm3s_platform_info;
+  struct spi_stellaris_master *platform_info;
   struct spi_master *master;
-  struct spi_lm3s_data *priv;
+  struct spi_stellaris_data *priv;
   struct resource *res;
   int ret;
 
-  lm3s_platform_info = dev_get_platdata(&pdev->dev);
-  if (!lm3s_platform_info) {
+  platform_info = dev_get_platdata(&pdev->dev);
+  if (!platform_info) {
     dev_err(&pdev->dev, "can't get the platform data\n");
     return -EINVAL;
   }
 
-  master = spi_alloc_master(&pdev->dev, sizeof(struct spi_lm3s_data));
+  master = spi_alloc_master(&pdev->dev, sizeof(struct spi_stellaris_data));
   if (!master)
     return -ENOMEM;
 
   platform_set_drvdata(pdev, master);
 
   master->bus_num = pdev->id;
-  master->num_chipselect = lm3s_platform_info->num_chipselect;
+  master->num_chipselect = platform_info->num_chipselect;
 
   priv = spi_master_get_devdata(master);
   priv->bitbang.master = spi_master_get(master);
-  priv->chipselect = lm3s_platform_info->chipselect;
+  priv->chipselect = platform_info->chipselect;
 
-#ifdef CONFIG_LM3S_DMA
-	priv->dma_tx_buffer = lm3s_platform_info->dma_tx_buffer;
-	priv->dma_rx_buffer = lm3s_platform_info->dma_rx_buffer;
-	priv->dma_tx_channel = lm3s_platform_info->dma_tx_channel;
-	priv->dma_rx_channel = lm3s_platform_info->dma_rx_channel;
+#ifdef CONFIG_STELLARIS_DMA
+	priv->dma_tx_buffer = platform_info->dma_tx_buffer;
+	priv->dma_rx_buffer = platform_info->dma_rx_buffer;
+	priv->dma_tx_channel = platform_info->dma_tx_channel;
+	priv->dma_rx_channel = platform_info->dma_rx_channel;
 
 	dma_setup_channel(priv->dma_tx_channel, DMA_DEFAULT_CONFIG);
 	dma_setup_channel(priv->dma_rx_channel, DMA_DEFAULT_CONFIG);
 #endif
 
-  priv->bitbang.chipselect = spi_lm3s_chipselect;
-  priv->bitbang.setup_transfer = spi_lm3s_setupxfer;
-  priv->bitbang.txrx_bufs = spi_lm3s_transfer;
-  priv->bitbang.master->setup = spi_lm3s_setup;
-  priv->bitbang.master->cleanup = spi_lm3s_cleanup;
+  priv->bitbang.chipselect = spi_chipselect;
+  priv->bitbang.setup_transfer = spi_setupxfer;
+  priv->bitbang.txrx_bufs = spi_transfer;
+  priv->bitbang.master->setup = spi_setup;
+  priv->bitbang.master->cleanup = spi_cleanup;
   priv->bitbang.master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
   init_completion(&priv->xfer_done);
@@ -785,7 +776,7 @@ static int __devinit spi_lm3s_probe(struct platform_device *pdev)
   }
 
 #ifndef POLLING_MODE
-  ret = request_irq(priv->irq, spi_lm3s_isr, 0, DRIVER_NAME, priv);
+  ret = request_irq(priv->irq, spi_isr, 0, DRIVER_NAME, priv);
   if (ret) {
     dev_err(&pdev->dev, "can't get irq%d: %d\n", priv->irq, ret);
     goto out_iounmap;
@@ -794,8 +785,8 @@ static int __devinit spi_lm3s_probe(struct platform_device *pdev)
 
   enable_ssi_clock();
 
-#ifdef CONFIG_LM3S_DMA
-	lm3s_putreg32(SSI_DMACTL_RXDMAE | SSI_DMACTL_TXDMAE, priv->base + LM3S_SSI_DMACTL_OFFSET);
+#ifdef CONFIG_STELLARIS_DMA
+	putreg32(SSI_DMACTL_RXDMAE | SSI_DMACTL_TXDMAE, priv->base + LM3S_SSI_DMACTL_OFFSET);
 #endif
 
   ret = spi_bitbang_start(&priv->bitbang);
@@ -825,11 +816,11 @@ out_master_put:
 
 /***************************************************************************/
 
-static int __devexit spi_lm3s_remove(struct platform_device *pdev)
+static int __devexit spi_remove(struct platform_device *pdev)
 {
   struct spi_master *master = platform_get_drvdata(pdev);
   struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-  struct spi_lm3s_data *priv = spi_master_get_devdata(master);
+  struct spi_stellaris_data *priv = spi_master_get_devdata(master);
 
   spi_bitbang_stop(&priv->bitbang);
 
@@ -851,36 +842,36 @@ static int __devexit spi_lm3s_remove(struct platform_device *pdev)
 
 /***************************************************************************/
 
-static struct platform_driver spi_lm3s_driver = {
+static struct platform_driver driver = {
   .driver = {
        .name = DRIVER_NAME,
        .owner = THIS_MODULE,
        },
-  .probe = spi_lm3s_probe,
-  .remove = __devexit_p(spi_lm3s_remove),
+  .probe = spi_probe,
+  .remove = __devexit_p(spi_remove),
 };
 
 /***************************************************************************/
 
-static int __init spi_lm3s_init(void)
+static int __init spi_init(void)
 {
-  return platform_driver_register(&spi_lm3s_driver);
+  return platform_driver_register(&driver);
 }
 
 /***************************************************************************/
 
-static void __exit spi_lm3s_exit(void)
+static void __exit spi_exit(void)
 {
-  platform_driver_unregister(&spi_lm3s_driver);
+  platform_driver_unregister(&driver);
 }
 
 /***************************************************************************/
 
-module_init(spi_lm3s_init);
-module_exit(spi_lm3s_exit);
+module_init(spi_init);
+module_exit(spi_exit);
 
 /***************************************************************************/
 
-MODULE_DESCRIPTION("SPI driver for Texas Instruments LM3SXX");
+MODULE_DESCRIPTION("SPI driver for Texas Instruments Stellaris");
 MODULE_AUTHOR("Max Nekludov <macscomp@gmail.com>");
 MODULE_LICENSE("GPL");

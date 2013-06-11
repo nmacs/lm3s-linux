@@ -1,0 +1,14 @@
+if ARCH_TM4C
+
+choice
+	prompt "Texas Instruments TM4CXXXX Processor"
+
+config ARCH_TM4C12
+	bool "TM4C12"
+	select PLAT_STELLARIS
+	help
+	  Include support for the Texas Instruments ARCH_TM4C12 MCU.
+
+endchoice
+
+endif

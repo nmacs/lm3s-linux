@@ -27,36 +27,36 @@
 
 /* our context */
 
-struct lm3s_gpio_led {
+struct stellaris_gpio_led {
 	struct led_classdev		 cdev;
-	struct lm3s_led_platdata	*pdata;
+	struct stellaris_led_platdata	*pdata;
 };
 
-static inline struct lm3s_gpio_led *pdev_to_gpio(struct platform_device *dev)
+static inline struct stellaris_gpio_led *pdev_to_gpio(struct platform_device *dev)
 {
 	return platform_get_drvdata(dev);
 }
 
-static inline struct lm3s_gpio_led *to_gpio(struct led_classdev *led_cdev)
+static inline struct stellaris_gpio_led *to_gpio(struct led_classdev *led_cdev)
 {
-	return container_of(led_cdev, struct lm3s_gpio_led, cdev);
+	return container_of(led_cdev, struct stellaris_gpio_led, cdev);
 }
 
-static void lm3s_led_set(struct led_classdev *led_cdev,
+static void led_set(struct led_classdev *led_cdev,
 			    enum led_brightness value)
 {
-	struct lm3s_gpio_led *led = to_gpio(led_cdev);
-	struct lm3s_led_platdata *pd = led->pdata;
+	struct stellaris_gpio_led *led = to_gpio(led_cdev);
+	struct stellaris_led_platdata *pd = led->pdata;
 
 	/* there will be a short delay between setting the output and
 	 * going from output to input when using tristate. */
 
-	lm3s_gpiowrite(pd->gpio, (value ? 1 : 0) ^ (pd->flags & LM3S_LEDF_ACTLOW));
+	gpiowrite(pd->gpio, (value ? 1 : 0) ^ (pd->flags & STELLARIS_LEDS_ACTLOW));
 }
 
-static int lm3s_led_remove(struct platform_device *dev)
+static int led_remove(struct platform_device *dev)
 {
-	struct lm3s_gpio_led *led = pdev_to_gpio(dev);
+	struct stellaris_gpio_led *led = pdev_to_gpio(dev);
 
 	led_classdev_unregister(&led->cdev);
 	kfree(led);
@@ -64,13 +64,13 @@ static int lm3s_led_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int lm3s_led_probe(struct platform_device *dev)
+static int led_probe(struct platform_device *dev)
 {
-	struct lm3s_led_platdata *pdata = dev->dev.platform_data;
-	struct lm3s_gpio_led *led;
+	struct stellaris_led_platdata *pdata = dev->dev.platform_data;
+	struct stellaris_gpio_led *led;
 	int ret;
 
-	led = kzalloc(sizeof(struct lm3s_gpio_led), GFP_KERNEL);
+	led = kzalloc(sizeof(struct stellaris_gpio_led), GFP_KERNEL);
 	if (led == NULL) {
 		dev_err(&dev->dev, "No memory for device\n");
 		return -ENOMEM;
@@ -78,7 +78,7 @@ static int lm3s_led_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, led);
 
-	led->cdev.brightness_set = lm3s_led_set;
+	led->cdev.brightness_set = led_set;
 	led->cdev.default_trigger = pdata->def_trigger;
 	led->cdev.name = pdata->name;
 	led->cdev.flags |= LED_CORE_SUSPENDRESUME;
@@ -87,8 +87,8 @@ static int lm3s_led_probe(struct platform_device *dev)
 
 	/* no point in having a pull-up if we are always driving */
 
-	lm3s_configgpio(pdata->gpio);
-	lm3s_gpiowrite(pdata->gpio, pdata->flags & LM3S_LEDF_ACTLOW ? 1 : 0);
+	configgpio(pdata->gpio);
+	gpiowrite(pdata->gpio, pdata->flags & STELLARIS_LEDS_ACTLOW ? 1 : 0);
 
 	/* register our new led device */
 
@@ -102,29 +102,29 @@ static int lm3s_led_probe(struct platform_device *dev)
 	return 0;
 }
 
-static struct platform_driver lm3s_led_driver = {
-	.probe		= lm3s_led_probe,
-	.remove		= lm3s_led_remove,
+static struct platform_driver led_driver = {
+	.probe		= led_probe,
+	.remove		= led_remove,
 	.driver		= {
-		.name		= "lm3s-led",
+		.name		= "stellaris-led",
 		.owner		= THIS_MODULE,
 	},
 };
 
-static int __init lm3s_led_init(void)
+static int __init led_init(void)
 {
-	return platform_driver_register(&lm3s_led_driver);
+	return platform_driver_register(&led_driver);
 }
 
-static void __exit lm3s_led_exit(void)
+static void __exit led_exit(void)
 {
-	platform_driver_unregister(&lm3s_led_driver);
+	platform_driver_unregister(&led_driver);
 }
 
-module_init(lm3s_led_init);
-module_exit(lm3s_led_exit);
+module_init(led_init);
+module_exit(led_exit);
 
 MODULE_AUTHOR("Max Nekludov <macscomp@gmail.com>");
-MODULE_DESCRIPTION("LM3S LED driver");
+MODULE_DESCRIPTION("Stellaris LED driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:lm3s-led");
+MODULE_ALIAS("platform:stellaris-led");

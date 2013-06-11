@@ -74,7 +74,7 @@ void __init nvic_init(void)
 {
 	unsigned int max_irq, i;
 
-#ifndef CONFIG_ARCH_LM3S1D21
+#ifndef CONFIG_PLAT_STELLARIS
 	max_irq = ((readl(NVIC_INTR_CTRL) & 0x1f) + 1) * 32;
 
   /*

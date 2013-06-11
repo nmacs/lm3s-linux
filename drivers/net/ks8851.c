@@ -27,8 +27,11 @@
 
 #include "ks8851.h"
 
-#ifdef CONFIG_ARCH_LM3S1D21
+#ifdef CONFIG_PLAT_STELLARIS
 #  include <mach/hardware.h>
+#endif
+#if defined(CONFIG_MACH_ATLAS) || defined(CONFIG_MACH_UWIC)
+#  include <mach/pins.h>
 #endif
 
 /**
@@ -441,8 +444,8 @@ static void ks8851_init_mac(struct ks8851_net *ks)
 	ks8851_write_mac_addr(dev);
 }
 
-#ifdef CONFIG_ARCH_LM3S1D21
-extern void lm3s_gpioclearint(uint32_t pinset);
+#ifdef CONFIG_PLAT_STELLARIS
+extern void gpioclearint(uint32_t pinset);
 #endif
 
 /**
@@ -457,8 +460,8 @@ static irqreturn_t ks8851_irq(int irq, void *pw)
 {
 	struct ks8851_net *ks = pw;
 
-#ifdef CONFIG_ARCH_LM3S1D21
-  lm3s_gpioclearint(GPIO_ETH_INTRN);
+#ifdef CONFIG_PLAT_STELLARIS
+  gpioclearint(GPIO_ETH_INTRN);
 #endif
 
 	disable_irq_nosync(irq);

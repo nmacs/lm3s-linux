@@ -192,10 +192,15 @@ choice
 	prompt "ARM system type"
 	default ARCH_VERSATILE
 
-config ARCH_LM3SXXXX
+config ARCH_LM3S
 	bool "Texas Instruments LM3SXXXX"
 	help
 	  This enables support for systems based on the LM3S1D21 MCUs
+
+config ARCH_TM4C
+	bool "Texas Instruments TM4CXXXX"
+	help
+	  This enables support for systems based on the TM4CXXXX MCUs
 
 config ARCH_AAEC2000
 	bool "Agilent AAEC-2000 based"
@@ -744,6 +749,25 @@ config ARCH_MPS
 
 endchoice
 
+choice
+	prompt "System type"
+	default ARCH_UWIC_1_0
+
+config ARCH_UWIC_1_0
+	bool "uWIC 1.0"
+	depends on ARCH_LM3S1D21
+	help
+	  Support of uWIC 1.0.
+
+config ARCH_ATLAS
+	bool "ATLAS board support"
+	depends on ARCH_TM4C12
+	select MACH_ATLAS
+	help
+	  Support of ATLAS board.
+
+endchoice
+
 source "arch/arm/mach-aaec2000/Kconfig"
 
 source "arch/arm/mach-at91/Kconfig"
@@ -854,7 +878,21 @@ source "arch/arm/mach-w90x900/Kconfig"
 
 source "arch/arm/mach-mps/Kconfig"
 
+if ARCH_LM3S
 source "arch/arm/mach-lm3s/Kconfig"
+endif
+
+if ARCH_TM4C
+source "arch/arm/mach-tm4c/Kconfig"
+endif
+
+if ARCH_LM3S || ARCH_TM4C
+source "arch/arm/plat-stellaris/Kconfig"
+endif
+
+if ARCH_ATLAS
+source "arch/arm/mach-atlas/Kconfig"
+endif
 
 # Definitions to make life easier
 config ARCH_ACORN

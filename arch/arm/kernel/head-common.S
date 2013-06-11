@@ -60,11 +60,14 @@ __mmap_switched:
  ARM(	ldmia	r3, {r4, r5, r6, r7, sp})
  THUMB(	ldmia	r3, {r4, r5, r6, r7}	)
  THUMB(	ldr	sp, [r3, #16]		)
+
 	str	r9, [r4]			@ Save processor ID
 	str	r1, [r5]			@ Save machine type
 	str	r2, [r6]			@ Save atags pointer
 	bic	r4, r0, #CR_A			@ Clear 'A' bit
+#ifdef CONFIG_CPU_CP15
 	stmia	r7, {r0, r4}			@ Save control register values
+#endif
 	b	start_kernel
 ENDPROC(__mmap_switched)
 

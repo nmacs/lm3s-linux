@@ -182,8 +182,8 @@
 /* Aeroflex Gaisler GRLIB APBUART */
 #define PORT_APBUART    90
 
-/* Texas Instruments LM3S UART */
-#define PORT_LM3S       91
+/* Texas Instruments Stellaris UART */
+#define PORT_STELLARIS  91
 
 #ifdef __KERNEL__
 

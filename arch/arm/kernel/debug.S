@@ -163,7 +163,7 @@ ENDPROC(printhex2)
 
 		.ltorg
 
-#ifndef CONFIG_ARCH_LM3S1D21
+#ifndef CONFIG_PLAT_STELLARIS
 
 ENTRY(printascii)
 		addruart r3

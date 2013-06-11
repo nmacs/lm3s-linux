@@ -95,7 +95,7 @@ cpu_v7m_name:
 __v7m_setup:
 
 	@ Configure the vector table base address
-#ifndef CONFIG_ARCH_LM3S1D21
+#ifndef CONFIG_PLAT_STELLARIS
 	ldr	r0, =0xe000ed08		@ vector table base address
 	ldr	r12, =vector_table
 	str	r12, [r0]

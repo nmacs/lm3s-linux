@@ -1,0 +1,22 @@
+if ARCH_ATLAS
+
+config MACH_ATLAS
+	bool
+
+menu "ATLAS board options"
+
+config ATLAS_CPU_LED
+	bool "Enable CPU LED support"
+	depends on ARCH_ATLAS
+	help
+	  CPU LED support.
+
+config UART_CLOCK_TICK_RATE
+	int "UART peripheral clock tick rate"
+	default 16000000
+	help
+	  Alternate UART clocking frequency. If 0 use CLOCK_TICK_RATE.
+
+endmenu
+
+endif

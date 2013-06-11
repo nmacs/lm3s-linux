@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/mach-lm3s/dma.c
+ *  linux/arch/arm/plat-stellaris/dma.c
  *
  *  Copyright (C) 2012 Max Nekludov <macscomp@gmail.com>
  *
@@ -20,12 +20,12 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
-void printascii(const char *str);
+//void printascii(const char *str);
 
 #define __dma_channels __sramdata __attribute__((aligned(DMA_CHANNEL_TABLE_ALIGNMENT)))
 #define CHANNEL_NUMBER(channel) ((channel) & 0xff)
 
-struct lm3s_dma_channel {
+struct stellaris_dma_channel {
   uint32_t DMASRCENDP;
   uint32_t DMADSTENDP;
   struct {
@@ -123,7 +123,7 @@ struct lm3s_dma_channel {
   uint32_t unused;
 };
 
-static struct lm3s_dma_channel __dma_channels lm3s_dma_channels[LM3S_NUDMA * 2];
+static struct stellaris_dma_channel __dma_channels dma_channels[STLR_NUDMA * 2];
 
 void dma_setup_channel(unsigned int channel, unsigned int config)
 {
@@ -132,20 +132,20 @@ void dma_setup_channel(unsigned int channel, unsigned int config)
 
 	if( channel & DMA_CHANNEL_ALT )
 	{
-		uint32_t regval = lm3s_getreg32(LM3S_DMA_CHASGN);
+		uint32_t regval = getreg32(STLR_DMA_CHASGN);
 		regval |= chmask;
-		lm3s_putreg32(regval, LM3S_DMA_CHASGN);
+		putreg32(regval, STLR_DMA_CHASGN);
 	}
 
 	if( config & DMA_HIGH_PRIORITY )
-		lm3s_putreg32(chmask, LM3S_DMA_PRIOSET);
+		putreg32(chmask, STLR_DMA_PRIOSET);
 	else
-		lm3s_putreg32(chmask, LM3S_DMA_PRIOCLR);
-	lm3s_putreg32(chmask, LM3S_DMA_ALTCLR);
+		putreg32(chmask, STLR_DMA_PRIOCLR);
+	putreg32(chmask, STLR_DMA_ALTCLR);
 	if( config & DMA_USE_BURST )
-		lm3s_putreg32(chmask, LM3S_DMA_USEBURSTSET);
+		putreg32(chmask, STLR_DMA_USEBURSTSET);
 	else
-		lm3s_putreg32(chmask, LM3S_DMA_USEBURSTCLR);
+		putreg32(chmask, STLR_DMA_USEBURSTCLR);
 }
 
 void __sram dma_setup_xfer(unsigned int channel, void *dst, void *src, size_t size, unsigned int flags)
@@ -154,10 +154,10 @@ void __sram dma_setup_xfer(unsigned int channel, void *dst, void *src, size_t si
 	int chmask = 1 << ch;
 	int transfer_unit_size_code = 0;
 	size_t length;
-	struct lm3s_dma_channel *dma_channel = lm3s_dma_channels + ch;
+	struct stellaris_dma_channel *dma_channel = dma_channels + ch;
 
 	if( flags & DMA_XFER_ALT )
-		dma_channel += LM3S_NUDMA;
+		dma_channel += STLR_NUDMA;
 
 	if( flags & DMA_XFER_UNIT_BYTE )
 		transfer_unit_size_code = 0;
@@ -201,33 +201,33 @@ void __sram dma_setup_xfer(unsigned int channel, void *dst, void *src, size_t si
 void __sram dma_start_xfer(unsigned int channel)
 {
 	int chmask = 1 << CHANNEL_NUMBER(channel);
-	lm3s_putreg32(chmask, LM3S_DMA_ALTCLR);
-	lm3s_putreg32(chmask, LM3S_DMA_REQMASKCLR);
-	lm3s_putreg32(chmask, LM3S_DMA_ENASET);
+	putreg32(chmask, STLR_DMA_ALTCLR);
+	putreg32(chmask, STLR_DMA_REQMASKCLR);
+	putreg32(chmask, STLR_DMA_ENASET);
 }
 
 void __sram dma_stop_xfer(unsigned int channel)
 {
 	int ch = CHANNEL_NUMBER(channel);
 	int chmask = 1 << ch;
-	lm3s_putreg32(chmask, LM3S_DMA_REQMASKSET);
-	lm3s_putreg32(chmask, LM3S_DMA_ENACLR);
+	putreg32(chmask, STLR_DMA_REQMASKSET);
+	putreg32(chmask, STLR_DMA_ENACLR);
 }
 
 void dma_wait_xfer_complete(unsigned int channel)
 {
 	int ch = CHANNEL_NUMBER(channel);
 	int chmask = 1 << ch;
-	while( lm3s_getreg32(LM3S_DMA_ENASET) & chmask ) {}
+	while( getreg32(STLR_DMA_ENASET) & chmask ) {}
 }
 
 int __sram dma_ack_interrupt(unsigned int channel)
 {
 	int ch = CHANNEL_NUMBER(channel);
 	int chmask = 1 << ch;
-	if( lm3s_getreg32(LM3S_DMA_CHIS) & chmask )
+	if( getreg32(STLR_DMA_CHIS) & chmask )
 	{
-		lm3s_putreg32(chmask, LM3S_DMA_CHIS);
+		putreg32(chmask, STLR_DMA_CHIS);
 		return 1;
 	}
 	else
@@ -238,9 +238,9 @@ int __sram get_units_left(unsigned int channel, int alt)
 {
 	int ch = CHANNEL_NUMBER(channel);
 	int result = 0;
-	struct lm3s_dma_channel *dma_channel = lm3s_dma_channels + ch;
+	struct stellaris_dma_channel *dma_channel = dma_channels + ch;
 	if( alt )
-		dma_channel += LM3S_NUDMA;
+		dma_channel += STLR_NUDMA;
 
 	result = dma_channel->DMACHCTL.XFERSIZE;
 	if( dma_channel->DMACHCTL.XFERMODE )
@@ -249,37 +249,35 @@ int __sram get_units_left(unsigned int channel, int alt)
 	return result;
 }
 
-static int __init lm3s_dma_init(void)
+static int __init dma_init(void)
 {
   uint32_t regval;
 
   /*
    * Enable uDMA clock
    */
-  regval = lm3s_getreg32(LM3S_SYSCON_RCGC2);
-  regval |= SYSCON_RCGC2_UDMA;
-  lm3s_putreg32(regval, LM3S_SYSCON_RCGC2);
+  dma_clock_ctrl(SYS_ENABLE_CLOCK);
 
 	/*
    * Enable uDMA
 	 */
-	regval = lm3s_getreg32(LM3S_DMA_CFG);
+	regval = getreg32(STLR_DMA_CFG);
 	regval |= DMA_CFG_MASTEN_MASK;
-	lm3s_putreg32(regval, LM3S_DMA_CFG);
+	putreg32(regval, STLR_DMA_CFG);
 
 	/*
 	 * Program the location of the channel control table
 	 */
-	lm3s_putreg32((uint32_t)lm3s_dma_channels, LM3S_DMA_CTLBASE);
+	putreg32((uint32_t)dma_channels, STLR_DMA_CTLBASE);
 
 	/*
 	 * WARNING: Possible TI issue.
 	 *          One and only one DMA channel of EPI0 MUST be selected
 	 *          to perform MDA transactions from/to SDRAM
 	 */
-	lm3s_putreg32((1 << 20) /*|| (1 << 21)*/, LM3S_DMA_CHASGN);
+	putreg32((1 << 20) /*|| (1 << 21)*/, STLR_DMA_CHASGN);
 
   return 0;
 }
 
-device_initcall(lm3s_dma_init);
+device_initcall(dma_init);

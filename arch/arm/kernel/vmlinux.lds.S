@@ -8,8 +8,9 @@
 #include <asm/memory.h>
 #include <asm/page.h>
 
-#ifdef CONFIG_ARCH_LM3S1D21
-#  include <mach/lm3s_memorymap.h>
+#ifdef CONFIG_PLAT_STELLARIS
+#  include <mach/memorymap.h>
+#  include <mach/irqs.h>
 #endif
 
 OUTPUT_ARCH(arm)
@@ -62,13 +63,13 @@ SECTIONS
 #endif
 	}
 
-#ifdef CONFIG_LM3S_COPY_TO_SRAM
+#ifdef CONFIG_COPY_TO_SRAM
   . = ALIGN(4);
   .sram_start : {
     __sram_load_address = .;
   }
 
-  .sram (LM3S_SRAM_BASE + 4*71) : AT(__sram_load_address) {
+  .sram (STLR_SRAM_BASE + 4*(16 + NR_IRQS)) : AT(__sram_load_address) {
     __sram_start = .;
     *(.sram.text)
     . = ALIGN(4);
@@ -95,7 +96,7 @@ SECTIONS
 	/DISCARD/ : {
 		*(.ARM.exidx.exit.text)
 		*(.ARM.extab.exit.text)
-#ifdef CONFIG_ARCH_LM3S1D21
+#if defined(CONFIG_ARCH_LM3S) || defined(CONFIG_ARCH_TM4C)
     *(.ARM.exidx.sram.text)
     *(.ARM.extab.sram.text)
 #endif
@@ -113,7 +114,7 @@ SECTIONS
 #endif
 	}
 
-#ifdef CONFIG_ARCH_LM3S1D21
+#if defined(CONFIG_ARCH_LM3S) || defined(CONFIG_ARCH_TM4C)
 	/* Work around linker bug */
 	__text_loc = .;
 	.text : AT(__text_loc) { /* Real text segment */

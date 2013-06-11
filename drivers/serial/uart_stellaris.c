@@ -1,5 +1,5 @@
 /*
- *  lm3s_uart.c -- TI LM3SXX UART driver
+ *  uart_stellaris.c -- TI Stellaris UART driver
  *
  *  (C) Copyright 2012, Max Nekludov <macscomp@gmail.com>
  *
@@ -36,9 +36,10 @@
 #include <mach/uart.h>
 #include <mach/timex.h>
 #include <mach/sram.h>
+#include <mach/dma.h>
 
-#ifdef CONFIG_LM3S_DMA
-#  include <mach/dma.h>
+#if !defined(CONFIG_UART_CLOCK_TICK_RATE) || CONFIG_UART_CLOCK_TICK_RATE == 0
+#define CONFIG_UART_CLOCK_TICK_RATE CLOCK_TICK_RATE
 #endif
 
 /****************************************************************************/
@@ -48,10 +49,11 @@
 /*
  *  Local per-uart structure.
  */
-struct lm3s_serial_port {
-  struct uart_port  port;
-  uint32_t rcgc1_mask;
-#ifdef CONFIG_LM3S_DMA
+struct stellaris_serial_port {
+	struct uart_port  port;
+
+	uint32_t uart_index;
+#ifdef CONFIG_STELLARIS_DMA
 	uint32_t dma_buffer_size;
 
 	uint32_t dma_tx_channel;
@@ -69,43 +71,39 @@ struct lm3s_serial_port {
 #endif
 };
 
-static int __sram lm3s_tx_chars(struct lm3s_serial_port *pp);
-static void __sram lm3s_start_rx_dma(struct lm3s_serial_port *pp);
+static int __sram tx_chars(struct stellaris_serial_port *pp);
+static void __sram start_rx_dma(struct stellaris_serial_port *pp);
 
 /****************************************************************************/
 
-static void lm3s_enable_uart(struct uart_port *port)
+static void enable_uart(struct uart_port *port)
 {
   uint32_t regval;
-  struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
+  struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 
 	dev_vdbg(port->dev, "%s\n", __func__);
 
-  regval = lm3s_getreg32(LM3S_SYSCON_RCGC1);
-  regval |= pp->rcgc1_mask;
-  /* NOTE: put LM3S_SYSCON_RCGC1 twice to workaround LM3S bug */
-  lm3s_putreg32(regval, LM3S_SYSCON_RCGC1);
-  lm3s_putreg32(regval, LM3S_SYSCON_RCGC1);
+	uart_clock_ctrl(pp->uart_index, SYS_ENABLE_CLOCK);
 
   /* Clear mask, so no surprise interrupts. */
-  lm3s_putreg32(0, port->membase + LM3S_UART_IM_OFFSET);
+  putreg32(0, port->membase + STLR_UART_IM_OFFSET);
 
-  regval = lm3s_getreg32(port->membase + LM3S_UART_LCRH_OFFSET);
+  regval = getreg32(port->membase + STLR_UART_LCRH_OFFSET);
   regval |= UART_LCRH_FEN;
-  lm3s_putreg32(regval, port->membase + LM3S_UART_LCRH_OFFSET);
+  putreg32(regval, port->membase + STLR_UART_LCRH_OFFSET);
 
-	regval = lm3s_getreg32(port->membase + LM3S_UART_IFLS_OFFSET);
+	regval = getreg32(port->membase + STLR_UART_IFLS_OFFSET);
 	regval = (regval & ~UART_IFLS_RXIFLSEL_MASK) | UART_IFLS_RXIFLSEL_18th;
-	lm3s_putreg32(regval, port->membase + LM3S_UART_IFLS_OFFSET);
+	putreg32(regval, port->membase + STLR_UART_IFLS_OFFSET);
 
-  regval = lm3s_getreg32(port->membase + LM3S_UART_CTL_OFFSET);
+  regval = getreg32(port->membase + STLR_UART_CTL_OFFSET);
   regval |= UART_CTL_UARTEN;
-  lm3s_putreg32(regval, port->membase + LM3S_UART_CTL_OFFSET);
+  putreg32(regval, port->membase + STLR_UART_CTL_OFFSET);
 
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 	dev_vdbg(port->dev, "%s enable port dma\n", __func__);
-	lm3s_putreg32(UART_DMACTL_TXDMAE | UART_DMACTL_RXDMAE,
-	              port->membase + LM3S_UART_DMACTL_OFFSET);
+	putreg32(UART_DMACTL_TXDMAE | UART_DMACTL_RXDMAE,
+	              port->membase + STLR_UART_DMACTL_OFFSET);
 	pp->tx_busy = 0;
 	pp->rx_busy = 0;
 #endif
@@ -113,36 +111,34 @@ static void lm3s_enable_uart(struct uart_port *port)
 
 /****************************************************************************/
 
-static void lm3s_disable_uart(struct uart_port *port)
+static void disable_uart(struct uart_port *port)
 {
   uint32_t regval;
-  struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
+  struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 
 	dev_vdbg(port->dev, "%s\n", __func__);
 
   /* Disable all interrupts now */
-  lm3s_putreg32(0, port->membase + LM3S_UART_IM_OFFSET);
+  putreg32(0, port->membase + STLR_UART_IM_OFFSET);
 
-  regval = lm3s_getreg32(port->membase + LM3S_UART_CTL_OFFSET);
+  regval = getreg32(port->membase + STLR_UART_CTL_OFFSET);
   regval &= ~UART_CTL_UARTEN;
-  lm3s_putreg32(regval, port->membase + LM3S_UART_CTL_OFFSET);
+  putreg32(regval, port->membase + STLR_UART_CTL_OFFSET);
 
-  regval = lm3s_getreg32(LM3S_SYSCON_RCGC1);
-  regval &= ~pp->rcgc1_mask;
-  lm3s_putreg32(regval, LM3S_SYSCON_RCGC1);
+  uart_clock_ctrl(pp->uart_index, SYS_DISABLE_CLOCK);
 }
 
 /****************************************************************************/
 
-static unsigned int lm3s_tx_empty(struct uart_port *port)
+static unsigned int tx_empty(struct uart_port *port)
 {
-  uint32_t regval = lm3s_getreg32(port->membase + LM3S_UART_FR_OFFSET);
+  uint32_t regval = getreg32(port->membase + STLR_UART_FR_OFFSET);
   return regval & UART_FR_TXFE ? TIOCSER_TEMT : 0;
 }
 
 /****************************************************************************/
 
-static unsigned int lm3s_get_mctrl(struct uart_port *port)
+static unsigned int get_mctrl(struct uart_port *port)
 {
   // TODO: Implement for UART1
   return TIOCM_CAR | TIOCM_CTS | TIOCM_DSR;
@@ -150,35 +146,35 @@ static unsigned int lm3s_get_mctrl(struct uart_port *port)
 
 /****************************************************************************/
 
-static void lm3s_set_mctrl(struct uart_port *port, unsigned int sigs)
+static void set_mctrl(struct uart_port *port, unsigned int sigs)
 {
   // TODO: Implement for UART1
 }
 
 /****************************************************************************/
 
-static void lm3s_start_tx(struct uart_port *port)
+static void start_tx(struct uart_port *port)
 {
   unsigned long flags;
   uint32_t regval;
-  struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
+  struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 
   dev_dbg(port->dev, "%s\n", __func__);
 
   spin_lock_irqsave(&port->lock, flags);
 
-	regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
+	regval = getreg32(port->membase + STLR_UART_IM_OFFSET);
 
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 	if( !pp->tx_busy )
-		lm3s_tx_chars(pp);
+		tx_chars(pp);
   else
 		dev_dbg(port->dev, "%s port busy\n", __func__);
 #else
-	if(lm3s_tx_chars(pp) )
+	if(tx_chars(pp) )
 	{
 		regval |= UART_IM_TXIM;
-		lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
+		putreg32(regval, port->membase + STLR_UART_IM_OFFSET);
 	}
 #endif
 
@@ -187,11 +183,11 @@ static void lm3s_start_tx(struct uart_port *port)
 
 /****************************************************************************/
 
-static void lm3s_stop_tx(struct uart_port *port)
+static void stop_tx(struct uart_port *port)
 {
   unsigned long flags;
-#ifdef CONFIG_LM3S_DMA
-	struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
+#ifdef CONFIG_STELLARIS_DMA
+	struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 #else
 	uint32_t regval;
 #endif
@@ -200,13 +196,13 @@ static void lm3s_stop_tx(struct uart_port *port)
 
   spin_lock_irqsave(&port->lock, flags);
 
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 	dma_stop_xfer(pp->dma_tx_channel);
 	pp->tx_busy = 0;
 #else
-  regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
+  regval = getreg32(port->membase + STLR_UART_IM_OFFSET);
   regval &= ~UART_IM_TXIM;
-  lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
+  putreg32(regval, port->membase + STLR_UART_IM_OFFSET);
 #endif
 
   spin_unlock_irqrestore(&port->lock, flags);
@@ -214,11 +210,11 @@ static void lm3s_stop_tx(struct uart_port *port)
 
 /****************************************************************************/
 
-static void lm3s_stop_rx(struct uart_port *port)
+static void stop_rx(struct uart_port *port)
 {
   unsigned long flags;
-#ifdef CONFIG_LM3S_DMA
-	struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
+#ifdef CONFIG_STELLARIS_DMA
+	struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 #else
 	uint32_t regval;
 #endif
@@ -227,12 +223,12 @@ static void lm3s_stop_rx(struct uart_port *port)
 
   spin_lock_irqsave(&port->lock, flags);
 
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 	dma_stop_xfer(pp->dma_rx_channel);
 #else
-  regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
+  regval = getreg32(port->membase + STLR_UART_IM_OFFSET);
   regval &= ~(UART_IM_RXIM | UART_IM_RTIM);
-  lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
+  putreg32(regval, port->membase + STLR_UART_IM_OFFSET);
 #endif
 
   spin_unlock_irqrestore(&port->lock, flags);
@@ -240,7 +236,7 @@ static void lm3s_stop_rx(struct uart_port *port)
 
 /****************************************************************************/
 
-static void lm3s_break_ctl(struct uart_port *port, int break_state)
+static void break_ctl(struct uart_port *port, int break_state)
 {
   unsigned long flags;
   uint32_t regval;
@@ -249,45 +245,45 @@ static void lm3s_break_ctl(struct uart_port *port, int break_state)
 
   spin_lock_irqsave(&port->lock, flags);
 
-  regval = lm3s_getreg32(port->membase + LM3S_UART_LCRH_OFFSET);
+  regval = getreg32(port->membase + STLR_UART_LCRH_OFFSET);
 
   if (break_state != 0)
     regval |= UART_LCRH_BRK;
   else
     regval &= ~UART_LCRH_BRK;
 
-  lm3s_putreg32(regval, port->membase + LM3S_UART_LCRH_OFFSET);
+  putreg32(regval, port->membase + STLR_UART_LCRH_OFFSET);
 
   spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /****************************************************************************/
 
-static void lm3s_enable_ms(struct uart_port *port)
+static void enable_ms(struct uart_port *port)
 {
 }
 
 /****************************************************************************/
 
-static int lm3s_startup(struct uart_port *port)
+static int startup(struct uart_port *port)
 {
   unsigned long flags;
-#ifdef CONFIG_LM3S_DMA
-	struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
+#ifdef CONFIG_STELLARIS_DMA
+	struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 #endif
 
   dev_dbg(port->dev, "%s\n", __func__);
 
   spin_lock_irqsave(&port->lock, flags);
 
-  lm3s_enable_uart(port);
+  enable_uart(port);
 
-#ifdef CONFIG_LM3S_DMA
-	lm3s_start_rx_dma(pp);
+#ifdef CONFIG_STELLARIS_DMA
+	start_rx_dma(pp);
 #else
   /* Enable RX interrupts now */
-  lm3s_putreg32(UART_IM_RXIM | UART_IM_RTIM,
-                port->membase + LM3S_UART_IM_OFFSET);
+  putreg32(UART_IM_RXIM | UART_IM_RTIM,
+                port->membase + STLR_UART_IM_OFFSET);
 #endif
 
   spin_unlock_irqrestore(&port->lock, flags);
@@ -297,7 +293,7 @@ static int lm3s_startup(struct uart_port *port)
 
 /****************************************************************************/
 
-static void lm3s_shutdown(struct uart_port *port)
+static void shutdown(struct uart_port *port)
 {
   unsigned long flags;
 
@@ -305,14 +301,14 @@ static void lm3s_shutdown(struct uart_port *port)
 
   spin_lock_irqsave(&port->lock, flags);
 
-  lm3s_disable_uart(port);
+  disable_uart(port);
 
   spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /****************************************************************************/
 
-static void lm3s_set_termios(struct uart_port *port, struct ktermios *termios,
+static void set_termios(struct uart_port *port, struct ktermios *termios,
   struct ktermios *old)
 {
   unsigned long flags;
@@ -367,8 +363,8 @@ static void lm3s_set_termios(struct uart_port *port, struct ktermios *termios,
 
   spin_lock_irqsave(&port->lock, flags);
 
-  ctl = lm3s_getreg32(port->membase + LM3S_UART_CTL_OFFSET);
-  lcrh = lm3s_getreg32(port->membase + LM3S_UART_LCRH_OFFSET);
+  ctl = getreg32(port->membase + STLR_UART_CTL_OFFSET);
+  lcrh = getreg32(port->membase + STLR_UART_LCRH_OFFSET);
 
   lcrh &= ~UART_LCRH_WLEN_MASK;
   switch (termios->c_cflag & CSIZE) {
@@ -421,47 +417,46 @@ static void lm3s_set_termios(struct uart_port *port, struct ktermios *termios,
   }
 
   /* Diable uart befor chage confuguration */
-  lm3s_putreg32(0, port->membase + LM3S_UART_CTL_OFFSET);
+  putreg32(0, port->membase + STLR_UART_CTL_OFFSET);
 
   /* Write configuration */
-  lm3s_putreg32(brdi, port->membase + LM3S_UART_IBRD_OFFSET);
-  lm3s_putreg32(divfrac, port->membase + LM3S_UART_FBRD_OFFSET);
-  lm3s_putreg32(lcrh, port->membase + LM3S_UART_LCRH_OFFSET);
-  lm3s_putreg32(ctl, port->membase + LM3S_UART_CTL_OFFSET);
+  putreg32(brdi, port->membase + STLR_UART_IBRD_OFFSET);
+  putreg32(divfrac, port->membase + STLR_UART_FBRD_OFFSET);
+  putreg32(lcrh, port->membase + STLR_UART_LCRH_OFFSET);
+  putreg32(ctl, port->membase + STLR_UART_CTL_OFFSET);
 
   spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /****************************************************************************/
 
-#ifdef CONFIG_LM3S_DMA
-static void __sram lm3s_start_rx_dma(struct lm3s_serial_port *pp)
+#ifdef CONFIG_STELLARIS_DMA
+static void __sram start_rx_dma(struct stellaris_serial_port *pp)
 {
 	struct uart_port *port = &pp->port;
 	void *slot = pp->rx_slot_a;
 
 	dma_setup_xfer(pp->dma_rx_channel,
 	               slot,
-	               port->membase + LM3S_UART_DR_OFFSET,
+	               port->membase + STLR_UART_DR_OFFSET,
 	               1,
 	               DMA_XFER_DEVICE_TO_MEMORY | DMA_XFER_UNIT_BYTE | DMA_XFER_MODE_PINGPONG);
 	dma_setup_xfer(pp->dma_rx_channel,
 	               (char*)slot + 1,
-	               port->membase + LM3S_UART_DR_OFFSET,
+	               port->membase + STLR_UART_DR_OFFSET,
 	               RX_SLOT_SIZE(pp) - 1,
 	               DMA_XFER_DEVICE_TO_MEMORY | DMA_XFER_UNIT_BYTE | DMA_XFER_MODE_PINGPONG | DMA_XFER_ALT);
 
 	dma_start_xfer(pp->dma_rx_channel);
 }
 
-static void __sram lm3s_rx_chars(struct lm3s_serial_port *pp);
+static void __sram rx_chars(struct stellaris_serial_port *pp);
 
 static void __sram do_rx_chars(struct work_struct *work)
 {
-	struct lm3s_serial_port *pp = container_of(work, struct lm3s_serial_port, rx_work);
+	struct stellaris_serial_port *pp = container_of(work, struct stellaris_serial_port, rx_work);
 	struct uart_port *port = &pp->port;
 	struct tty_struct *tty = port->state->port.tty;
-	int i;
 	unsigned char* slot = pp->rx_slot_b;
 	int bytes_received = pp->cur_bytes_received;
 	int old_low_latency = tty->low_latency;
@@ -476,15 +471,15 @@ static void __sram do_rx_chars(struct work_struct *work)
 
 	local_irq_save(flags);
 	pp->rx_busy = 0;
-	lm3s_rx_chars(pp);
+	rx_chars(pp);
 	local_irq_restore(flags);
 }
 #endif
 
-static void __sram lm3s_rx_chars(struct lm3s_serial_port *pp)
+static void __sram rx_chars(struct stellaris_serial_port *pp)
 {
 	struct uart_port *port = &pp->port;
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 	int bytes_received;
 #else
   unsigned char ch;
@@ -494,7 +489,7 @@ static void __sram lm3s_rx_chars(struct lm3s_serial_port *pp)
 
   dev_vdbg(port->dev, "%s\n", __func__);
 
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 	if( pp->rx_busy )
 		return;
 
@@ -506,7 +501,7 @@ static void __sram lm3s_rx_chars(struct lm3s_serial_port *pp)
 	bytes_received -= get_units_left(pp->dma_rx_channel, 0);
 	bytes_received -= get_units_left(pp->dma_rx_channel, 1);
 
-	lm3s_start_rx_dma(pp);
+	start_rx_dma(pp);
 
 	if( bytes_received > 0 )
 	{
@@ -515,9 +510,9 @@ static void __sram lm3s_rx_chars(struct lm3s_serial_port *pp)
 		schedule_work(&pp->rx_work);
 	}
 #else
-  while( ((lm3s_getreg32(port->membase + LM3S_UART_FR_OFFSET)) & UART_FR_RXFE) == 0 )
+  while( ((getreg32(port->membase + STLR_UART_FR_OFFSET)) & UART_FR_RXFE) == 0 )
   {
-    rxdata = lm3s_getreg32(port->membase + LM3S_UART_DR_OFFSET);
+    rxdata = getreg32(port->membase + STLR_UART_DR_OFFSET);
     ch = (unsigned char)(rxdata & UART_DR_DATA_MASK);
     status = rxdata & ~UART_DR_DATA_MASK;
 
@@ -561,11 +556,11 @@ static void __sram lm3s_rx_chars(struct lm3s_serial_port *pp)
 
 /****************************************************************************/
 
-static int __sram lm3s_tx_chars(struct lm3s_serial_port *pp)
+static int __sram tx_chars(struct stellaris_serial_port *pp)
 {
   struct uart_port *port = &pp->port;
   struct circ_buf *xmit = &port->state->xmit;
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 	size_t xfer_size;
 	size_t bytes_to_transmit;
 #else
@@ -576,47 +571,47 @@ static int __sram lm3s_tx_chars(struct lm3s_serial_port *pp)
 
   if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
 		dev_vdbg(port->dev, "%s TX complete\n", __func__);
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 		dma_stop_xfer(pp->dma_tx_channel);
 		pp->tx_busy = 0;
 #else
-		regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
+		regval = getreg32(port->membase + STLR_UART_IM_OFFSET);
     regval &= ~UART_IM_TXIM;
-    lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
+    putreg32(regval, port->membase + STLR_UART_IM_OFFSET);
 #endif
     return 0;
   }
 
   if (port->x_char) {
     /* Send special char - probably flow control */
-    lm3s_putreg32(port->x_char, port->membase + LM3S_UART_DR_OFFSET);
+    putreg32(port->x_char, port->membase + STLR_UART_DR_OFFSET);
     port->x_char = 0;
     port->icount.tx++;
   }
 
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 	pp->tx_busy = 1;
 	bytes_to_transmit = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
   xfer_size = min(bytes_to_transmit, pp->dma_buffer_size);
 	dma_memcpy(pp->dma_tx_buffer, xmit->buf + xmit->tail, xfer_size);
 	xmit->tail = (xmit->tail + xfer_size) & (UART_XMIT_SIZE - 1);
 	dma_setup_xfer(pp->dma_tx_channel,
-								 port->membase + LM3S_UART_DR_OFFSET,
+								 port->membase + STLR_UART_DR_OFFSET,
 								 pp->dma_tx_buffer,
 								 xfer_size,
 								 DMA_XFER_MEMORY_TO_DEVICE | DMA_XFER_UNIT_BYTE);
 	dma_start_xfer(pp->dma_tx_channel);
 
 	dev_vdbg(port->dev, "%s: dma_ch %x, xfer_size %u, dst %p\n",
-					 __func__, pp->dma_tx_channel, xfer_size, port->membase + LM3S_UART_DR_OFFSET);
+					 __func__, pp->dma_tx_channel, xfer_size, port->membase + STLR_UART_DR_OFFSET);
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
     uart_write_wakeup(port);
 #else
-  while ((lm3s_getreg32(port->membase + LM3S_UART_FR_OFFSET) & UART_FR_TXFF) == 0) {
+  while ((getreg32(port->membase + STLR_UART_FR_OFFSET) & UART_FR_TXFF) == 0) {
     if (xmit->head == xmit->tail)
       break;
-    lm3s_putreg32(xmit->buf[xmit->tail], port->membase + LM3S_UART_DR_OFFSET);
+    putreg32(xmit->buf[xmit->tail], port->membase + STLR_UART_DR_OFFSET);
     xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE -1);
     port->icount.tx++;
   }
@@ -626,9 +621,9 @@ static int __sram lm3s_tx_chars(struct lm3s_serial_port *pp)
 
   if (xmit->head == xmit->tail) {
 		dev_vdbg(port->dev, "%s TX complete\n", __func__);
-    regval = lm3s_getreg32(port->membase + LM3S_UART_IM_OFFSET);
+    regval = getreg32(port->membase + STLR_UART_IM_OFFSET);
     regval &= ~UART_IM_TXIM;
-    lm3s_putreg32(regval, port->membase + LM3S_UART_IM_OFFSET);
+    putreg32(regval, port->membase + STLR_UART_IM_OFFSET);
     return 0;
   }
 #endif
@@ -638,40 +633,40 @@ static int __sram lm3s_tx_chars(struct lm3s_serial_port *pp)
 
 /****************************************************************************/
 
-static irqreturn_t __sram lm3s_interrupt(int irq, void *data)
+static irqreturn_t __sram interrupt(int irq, void *data)
 {
   struct uart_port *port = data;
-  struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
+  struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
   uint32_t isr;
 
-  isr = lm3s_getreg32(port->membase + LM3S_UART_MIS_OFFSET);
-  lm3s_putreg32(0xFFFFFFFF, port->membase + LM3S_UART_ICR_OFFSET);
+  isr = getreg32(port->membase + STLR_UART_MIS_OFFSET);
+  putreg32(0xFFFFFFFF, port->membase + STLR_UART_ICR_OFFSET);
 
 	dev_vdbg(port->dev, "%s ISR 0x%x\n", __func__, isr);
 
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 	if (dma_ack_interrupt(pp->dma_rx_channel))
 	{
 		dev_vdbg(port->dev, "%s RX\n", __func__);
-		lm3s_rx_chars(pp);
+		rx_chars(pp);
 	}
 
 	if (dma_ack_interrupt(pp->dma_tx_channel))
 	{
 		dev_vdbg(port->dev, "%s TX\n", __func__);
-		lm3s_tx_chars(pp);
+		tx_chars(pp);
 	}
 #else
   if (isr & (UART_MIS_RXMIS | UART_MIS_RTMIS))
 	{
 		dev_vdbg(port->dev, "%s RX\n", __func__);
-    lm3s_rx_chars(pp);
+    rx_chars(pp);
 	}
 
   if (isr & UART_MIS_TXMIS)
 	{
 		dev_vdbg(port->dev, "%s TX\n", __func__);
-    lm3s_tx_chars(pp);
+    tx_chars(pp);
 	}
 #endif
 
@@ -680,20 +675,20 @@ static irqreturn_t __sram lm3s_interrupt(int irq, void *data)
 
 /****************************************************************************/
 
-static void lm3s_config_port(struct uart_port *port, int flags)
+static void config_port(struct uart_port *port, int flags)
 {
-#ifdef CONFIG_LM3S_DMA
-	struct lm3s_serial_port *pp = container_of(port, struct lm3s_serial_port, port);
+#ifdef CONFIG_STELLARIS_DMA
+	struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 #endif
-  port->type = PORT_LM3S;
+  port->type = PORT_STELLARIS;
 
 	dev_vdbg(port->dev, "%s\n", __func__);
 
-  if (request_irq(port->irq, lm3s_interrupt, IRQF_DISABLED, "UART", port))
+  if (request_irq(port->irq, interrupt, IRQF_DISABLED, "UART", port))
     dev_err(port->dev, "Unable to attach UART %d "
       "interrupt vector=%d\n", port->line, port->irq);
 
-#ifdef CONFIG_LM3S_DMA
+#ifdef CONFIG_STELLARIS_DMA
 	dev_vdbg(port->dev, "%s setup channel\n", __func__);
 	dma_setup_channel(pp->dma_tx_channel, DMA_DEFAULT_CONFIG);
 	dma_setup_channel(pp->dma_rx_channel, DMA_DEFAULT_CONFIG);
@@ -702,29 +697,29 @@ static void lm3s_config_port(struct uart_port *port, int flags)
 
 /****************************************************************************/
 
-static const char *lm3s_type(struct uart_port *port)
+static const char *get_type(struct uart_port *port)
 {
-  return (port->type == PORT_LM3S) ? "TI LM3S UART" : NULL;
+  return (port->type == PORT_STELLARIS) ? "TI Stellaris UART" : NULL;
 }
 
 /****************************************************************************/
 
-static int lm3s_request_port(struct uart_port *port)
+static int request_port(struct uart_port *port)
 {
   return 0;
 }
 
 /****************************************************************************/
 
-static void lm3s_release_port(struct uart_port *port)
+static void release_port(struct uart_port *port)
 {
 }
 
 /****************************************************************************/
 
-static int lm3s_verify_port(struct uart_port *port, struct serial_struct *ser)
+static int verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-  if ((ser->type != PORT_UNKNOWN) && (ser->type != PORT_LM3S))
+  if ((ser->type != PORT_UNKNOWN) && (ser->type != PORT_STELLARIS))
     return -EINVAL;
   return 0;
 }
@@ -734,66 +729,66 @@ static int lm3s_verify_port(struct uart_port *port, struct serial_struct *ser)
 /*
  *  Define the basic serial functions we support.
  */
-static struct uart_ops lm3s_uart_ops = {
-  .tx_empty = lm3s_tx_empty,
-  .get_mctrl  = lm3s_get_mctrl,
-  .set_mctrl  = lm3s_set_mctrl,
-  .start_tx = lm3s_start_tx,
-  .stop_tx  = lm3s_stop_tx,
-  .stop_rx  = lm3s_stop_rx,
-  .enable_ms  = lm3s_enable_ms,
-  .break_ctl  = lm3s_break_ctl,
-  .startup  = lm3s_startup,
-  .shutdown = lm3s_shutdown,
-  .set_termios  = lm3s_set_termios,
-  .type   = lm3s_type,
-  .request_port = lm3s_request_port,
-  .release_port = lm3s_release_port,
-  .config_port  = lm3s_config_port,
-  .verify_port  = lm3s_verify_port,
+static const struct uart_ops ops = {
+  .tx_empty = tx_empty,
+  .get_mctrl  = get_mctrl,
+  .set_mctrl  = set_mctrl,
+  .start_tx = start_tx,
+  .stop_tx  = stop_tx,
+  .stop_rx  = stop_rx,
+  .enable_ms  = enable_ms,
+  .break_ctl  = break_ctl,
+  .startup  = startup,
+  .shutdown = shutdown,
+  .set_termios  = set_termios,
+  .type   = get_type,
+  .request_port = request_port,
+  .release_port = release_port,
+  .config_port  = config_port,
+  .verify_port  = verify_port,
 };
 
 /****************************************************************************/
 
-static struct lm3s_serial_port lm3s_ports[LM3S_NUARTS];
+static struct stellaris_serial_port ports[STLR_NUARTS];
 
 /****************************************************************************/
-#if defined(CONFIG_SERIAL_LM3S_CONSOLE)
+#if defined(CONFIG_SERIAL_STELLARIS_CONSOLE)
 /****************************************************************************/
 
-extern void lm3s_uart_putc(uint32_t uart_base, const char ch);
+extern void uart_putc(uint32_t uart_base, const char ch);
 
-static void lm3s_serial_console_putchar(struct uart_port *port, int ch)
+static void serial_console_putchar(struct uart_port *port, int ch)
 {
-  lm3s_uart_putc((uint32_t)port->membase, ch);
+  uart_putc((uint32_t)port->membase, ch);
 }
 
 /****************************************************************************/
 
-static void lm3s_console_write(struct console *co, const char *s, unsigned int count)
+static void console_write(struct console *co, const char *s, unsigned int count)
 {
-  struct lm3s_serial_port *uart = &lm3s_ports[co->index];
+  struct stellaris_serial_port *uart = &ports[co->index];
   unsigned long flags;
 
-  spin_lock_irqsave(&uart->port.lock, flags);
-  uart_console_write(&uart->port, s, count, lm3s_serial_console_putchar);
-  spin_unlock_irqrestore(&uart->port.lock, flags);
+	spin_lock_irqsave(&uart->port.lock, flags);
+	uart_console_write(&uart->port, s, count, serial_console_putchar);
+	spin_unlock_irqrestore(&uart->port.lock, flags);
 }
 
 /****************************************************************************/
 
-static int __init lm3s_console_setup(struct console *co, char *options)
+static int __init console_setup(struct console *co, char *options)
 {
   struct uart_port *port;
-  int baud = CONFIG_SERIAL_LM3S_BAUDRATE;
+  int baud = CONFIG_SERIAL_STELLARIS_BAUDRATE;
   int bits = 8;
   int parity = 'n';
   int flow = 'n';
 
-  if ((co->index < 0) || (co->index >= LM3S_NUARTS))
+  if ((co->index < 0) || (co->index >= STLR_NUARTS))
     co->index = 0;
 
-  port = &lm3s_ports[co->index].port;
+  port = &ports[co->index].port;
   if (port->membase == 0)
     return -ENODEV;
 
@@ -805,65 +800,65 @@ static int __init lm3s_console_setup(struct console *co, char *options)
 
 /****************************************************************************/
 
-static struct uart_driver lm3s_driver;
+static struct uart_driver driver;
 
-static struct console lm3s_console = {
+static struct console console = {
   .name   = "ttyS",
-  .write    = lm3s_console_write,
+  .write    = console_write,
   .device   = uart_console_device,
-  .setup    = lm3s_console_setup,
+  .setup    = console_setup,
   .flags    = CON_PRINTBUFFER,
   .index    = -1,
-  .data   = &lm3s_driver,
+  .data   = &driver,
 };
 
-static int __init lm3s_console_init(void)
+static int __init stellaris_console_init(void)
 {
-  register_console(&lm3s_console);
+  register_console(&console);
   return 0;
 }
-console_initcall(lm3s_console_init);
+console_initcall(stellaris_console_init);
 
-#define LM3S_CONSOLE &lm3s_console
+#define STELLARIS_CONSOLE &console
 
 /****************************************************************************/
 #else
 /****************************************************************************/
 
-#define LM3S_CONSOLE NULL
+#define STELLARIS_CONSOLE NULL
 
 /****************************************************************************/
 #endif /* CONFIG_MCF_CONSOLE */
 /****************************************************************************/
 
 /*
- *  Define the LM3S UART driver structure.
+ *  Define the STELLARIS UART driver structure.
  */
-static struct uart_driver lm3s_driver = {
+static struct uart_driver driver = {
   .owner        = THIS_MODULE,
-  .driver_name  = "lm3s",
+  .driver_name  = "stellaris",
   .dev_name     = "ttyS",
   .major        = TTY_MAJOR,
   .minor        = 64,
-  .nr           = LM3S_NUARTS,
-  .cons         = LM3S_CONSOLE,
+  .nr           = STLR_NUARTS,
+  .cons         = STELLARIS_CONSOLE,
 };
 
 /****************************************************************************/
 
-static int __devinit lm3s_probe(struct platform_device *pdev)
+static int __devinit probe(struct platform_device *pdev)
 {
-  struct lm3s_platform_uart *platp = pdev->dev.platform_data;
+  struct stellaris_platform_uart *platp = pdev->dev.platform_data;
   struct uart_port *port;
-  struct lm3s_serial_port *pp;
+  struct stellaris_serial_port *pp;
   int i;
 
-  for (i = 0; ((i < LM3S_NUARTS) && (platp[i].mapbase)); i++) {
-    pp = lm3s_ports + i;
+  for (i = 0; ((i < STLR_NUARTS) && (platp[i].mapbase)); i++) {
+    pp = ports + i;
     port = &pp->port;
 
-    pp->rcgc1_mask = platp[i].rcgc1_mask;
-#ifdef CONFIG_LM3S_DMA
+    pp->uart_index = platp[i].uart_index;
+#ifdef CONFIG_STELLARIS_DMA
 		pp->dma_buffer_size = platp[i].dma_buffer_size;
 
 		pp->dma_tx_channel = platp[i].dma_tx_channel;
@@ -882,17 +877,17 @@ static int __devinit lm3s_probe(struct platform_device *pdev)
 
     port->dev = &pdev->dev;
     port->line = i;
-    port->type = PORT_LM3S;
+    port->type = PORT_STELLARIS;
     port->mapbase = platp[i].mapbase;
     port->membase = (platp[i].membase) ? platp[i].membase :
       (unsigned char __iomem *) platp[i].mapbase;
     port->iotype = SERIAL_IO_MEM;
     port->irq = platp[i].irq;
-    port->uartclk = CLOCK_TICK_RATE;
-    port->ops = &lm3s_uart_ops;
+    port->uartclk = CONFIG_UART_CLOCK_TICK_RATE;
+    port->ops = &ops;
     port->flags = ASYNC_BOOT_AUTOCONF;
 
-    uart_add_one_port(&lm3s_driver, port);
+    uart_add_one_port(&driver, port);
   }
 
   return 0;
@@ -900,15 +895,15 @@ static int __devinit lm3s_probe(struct platform_device *pdev)
 
 /****************************************************************************/
 
-static int __devexit lm3s_remove(struct platform_device *pdev)
+static int __devexit remove(struct platform_device *pdev)
 {
   struct uart_port *port;
   int i;
 
-  for (i = 0; (i < LM3S_NUARTS); i++) {
-    port = &lm3s_ports[i].port;
+  for (i = 0; (i < STLR_NUARTS); i++) {
+    port = &ports[i].port;
     if (port)
-      uart_remove_one_port(&lm3s_driver, port);
+      uart_remove_one_port(&driver, port);
   }
 
   return 0;
@@ -916,28 +911,28 @@ static int __devexit lm3s_remove(struct platform_device *pdev)
 
 /****************************************************************************/
 
-static struct platform_driver lm3s_platform_driver = {
-  .probe    = lm3s_probe,
-  .remove   = __devexit_p(lm3s_remove),
+static struct platform_driver platform_driver = {
+  .probe    = probe,
+  .remove   = __devexit_p(remove),
   .driver   = {
-    .name = "lm3s-uart",
+    .name = "uart-stellaris",
     .owner  = THIS_MODULE,
   },
 };
 
 /****************************************************************************/
 
-static int __init lm3s_init(void)
+static int __init stellaris_uart_init(void)
 {
   int rc;
 
-  printk(KERN_INFO "Texas Instruments LM3S UART serial driver\n");
+  printk(KERN_INFO "Texas Instruments Stellaris UART serial driver\n");
 
-  rc = uart_register_driver(&lm3s_driver);
+  rc = uart_register_driver(&driver);
   if (rc)
     return rc;
 
-  rc = platform_driver_register(&lm3s_platform_driver);
+  rc = platform_driver_register(&platform_driver);
   if (rc)
     return rc;
 
@@ -946,18 +941,18 @@ static int __init lm3s_init(void)
 
 /****************************************************************************/
 
-static void __exit lm3s_exit(void)
+static void __exit stellaris_uart_exit(void)
 {
-  platform_driver_unregister(&lm3s_platform_driver);
-  uart_unregister_driver(&lm3s_driver);
+  platform_driver_unregister(&platform_driver);
+  uart_unregister_driver(&driver);
 }
 
 /****************************************************************************/
 
-module_init(lm3s_init);
-module_exit(lm3s_exit);
+module_init(stellaris_uart_init);
+module_exit(stellaris_uart_exit);
 
 MODULE_AUTHOR("Max Nekludov <macscomp@gmail.com>");
-MODULE_DESCRIPTION("TI LM3SXX UART driver");
+MODULE_DESCRIPTION("TI Stellaris UART driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:lm3s-uart");
+MODULE_ALIAS("platform:uart-stellaris");

@@ -128,23 +128,16 @@ static const struct gpio_func_s g_funcbits[] =
   {GPIO_INTERRUPT_SETBITS, GPIO_INTERRUPT_CLRBITS}, /* GPIO_FUNC_INTERRUPT */
 };
 
-static const uint32_t g_gpiobase[LM3S_NPORTS] =
+static const uint32_t g_gpiobase[STLR_NPORTS] =
 {
-  /* All support LM3S parts have at least 7 ports, GPIOA-G */
-
-  LM3S_GPIOA_BASE, LM3S_GPIOB_BASE, LM3S_GPIOC_BASE, LM3S_GPIOD_BASE,
-  LM3S_GPIOE_BASE, LM3S_GPIOF_BASE, LM3S_GPIOG_BASE,
-
-  /* GPIOH exists on the LM3S6918 and th LM3S6B96, but not on the LM3S6965 or LM3S8962*/
-
-#if LM3S_NPORTS > 7
-  LM3S_GPIOH_BASE,
-#endif
-
-  /* GPIOJ exists on the LM3S6B96, but not on the LM3S6918 or LM3S6965 or LM3S8962*/
-
-#if LM3S_NPORTS > 8
-  LM3S_GPIOJ_BASE,
+#if defined(CONFIG_ARCH_LM3S1D21)
+  STLR_GPIOA_BASE, STLR_GPIOB_BASE, STLR_GPIOC_BASE, STLR_GPIOD_BASE,
+  STLR_GPIOE_BASE, STLR_GPIOF_BASE, STLR_GPIOG_BASE, STLR_GPIOH_BASE,
+  STLR_GPIOJ_BASE
+#elif defined(CONFIG_ARCH_TM4C12)
+  STLR_GPIOA_BASE, STLR_GPIOB_BASE, STLR_GPIOC_BASE, STLR_GPIOD_BASE,
+  STLR_GPIOE_BASE, STLR_GPIOF_BASE, STLR_GPIOG_BASE, STLR_GPIOH_BASE,
+  STLR_GPIOK_BASE, STLR_GPIOL_BASE, STLR_GPIOM_BASE, STLR_GPIOP_BASE
 #endif
 };
 
@@ -165,10 +158,10 @@ static const uint32_t g_gpiobase[LM3S_NPORTS] =
  *
  ****************************************************************************/
 
-static uint32_t lm3s_gpiobaseaddress(unsigned int port)
+static uint32_t gpiobaseaddress(unsigned int port)
 {
   uint32_t gpiobase = 0;
-  if (port < LM3S_NPORTS)
+  if (port < STLR_NPORTS)
     {
       gpiobase = g_gpiobase[port];
     }
@@ -183,7 +176,7 @@ static uint32_t lm3s_gpiobaseaddress(unsigned int port)
  *
  ****************************************************************************/
 
-static void lm3s_gpiofunc(uint32_t base, uint32_t pinno, const struct gpio_func_s *func)
+static void gpiofunc(uint32_t base, uint32_t pinno, const struct gpio_func_s *func)
 {
   uint32_t setbit;
   uint32_t clrbit;
@@ -203,10 +196,10 @@ static void lm3s_gpiofunc(uint32_t base, uint32_t pinno, const struct gpio_func_
   setbit = (((uint32_t)func->setbits >> ODR_SHIFT) & 1) << pinno;
   clrbit = (((uint32_t)func->clrbits >> ODR_SHIFT) & 1) << pinno;
 
-  regval = lm3s_getreg32(base + LM3S_GPIO_ODR_OFFSET);
+  regval = getreg32(base + STLR_GPIO_ODR_OFFSET);
   regval &= ~clrbit;
   regval |= setbit;
-  lm3s_putreg32(regval, base + LM3S_GPIO_ODR_OFFSET);
+  putreg32(regval, base + STLR_GPIO_ODR_OFFSET);
 
   /* Set/clear the GPIO PUR bit. "The GPIOPUR register is the pull-up control
    * register. When a bit is set to 1, it enables a weak pull-up resistor on the
@@ -219,10 +212,10 @@ static void lm3s_gpiofunc(uint32_t base, uint32_t pinno, const struct gpio_func_
 
   if (setbit || clrbit)
     {
-      regval = lm3s_getreg32(base + LM3S_GPIO_PUR_OFFSET);
+      regval = getreg32(base + STLR_GPIO_PUR_OFFSET);
       regval &= ~clrbit;
       regval |= setbit;
-      lm3s_putreg32(regval, base + LM3S_GPIO_PUR_OFFSET);
+      putreg32(regval, base + STLR_GPIO_PUR_OFFSET);
     }
 
   /* Set/clear the GPIO PDR bit. "The GPIOPDR register is the pull-down control
@@ -236,10 +229,10 @@ static void lm3s_gpiofunc(uint32_t base, uint32_t pinno, const struct gpio_func_
 
   if (setbit || clrbit)
     {
-      regval = lm3s_getreg32(base + LM3S_GPIO_PDR_OFFSET);
+      regval = getreg32(base + STLR_GPIO_PDR_OFFSET);
       regval &= ~clrbit;
       regval |= setbit;
-      lm3s_putreg32(regval, base + LM3S_GPIO_PDR_OFFSET);
+      putreg32(regval, base + STLR_GPIO_PDR_OFFSET);
     }
 
   /* Set/clear the GPIO DEN bit. "The GPIODEN register is the digital enable
@@ -254,10 +247,10 @@ static void lm3s_gpiofunc(uint32_t base, uint32_t pinno, const struct gpio_func_
   setbit = (((uint32_t)func->setbits >> DEN_SHIFT) & 1) << pinno;
   clrbit = (((uint32_t)func->clrbits >> DEN_SHIFT) & 1) << pinno;
 
-  regval = lm3s_getreg32(base + LM3S_GPIO_DEN_OFFSET);
+  regval = getreg32(base + STLR_GPIO_DEN_OFFSET);
   regval &= ~clrbit;
   regval |= setbit;
-  lm3s_putreg32(regval, base + LM3S_GPIO_DEN_OFFSET);
+  putreg32(regval, base + STLR_GPIO_DEN_OFFSET);
 
   /* Set/clear/ignore the GPIO DIR bit. "The GPIODIR register is the data
    * direction register. Bits set to 1 in the GPIODIR register configure
@@ -269,10 +262,10 @@ static void lm3s_gpiofunc(uint32_t base, uint32_t pinno, const struct gpio_func_
   setbit = (((uint32_t)func->setbits >> DIR_SHIFT) & 1) << pinno;
   clrbit = (((uint32_t)func->clrbits >> DIR_SHIFT) & 1) << pinno;
 
-  regval = lm3s_getreg32(base + LM3S_GPIO_DIR_OFFSET);
+  regval = getreg32(base + STLR_GPIO_DIR_OFFSET);
   regval &= ~clrbit;
   regval |= setbit;
-  lm3s_putreg32(regval, base + LM3S_GPIO_DIR_OFFSET);
+  putreg32(regval, base + STLR_GPIO_DIR_OFFSET);
 
   /* Set/clear/ignore the GPIO AFSEL bit. "The GPIOAFSEL register is the mode
    * control select register. Writing a 1 to any bit in this register selects
@@ -286,22 +279,22 @@ static void lm3s_gpiofunc(uint32_t base, uint32_t pinno, const struct gpio_func_
   setbit = (((uint32_t)func->setbits >> AFSEL_SHIFT) & 1) << pinno;
   clrbit = (((uint32_t)func->clrbits >> AFSEL_SHIFT) & 1) << pinno;
 
-  regval = lm3s_getreg32(base + LM3S_GPIO_AFSEL_OFFSET);
+  regval = getreg32(base + STLR_GPIO_AFSEL_OFFSET);
   regval &= ~clrbit;
   regval |= setbit;
-  lm3s_putreg32(regval, base + LM3S_GPIO_AFSEL_OFFSET);
+  putreg32(regval, base + STLR_GPIO_AFSEL_OFFSET);
 }
 
-static inline void lm3s_gpio_digital_function(uint32_t base, uint32_t pin, uint32_t dfunc)
+static void gpio_digital_function(uint32_t base, uint32_t pin, uint32_t dfunc)
 {
   uint32_t mask;
   uint32_t regval;
 
   mask = 15 << (pin * 4);
-  regval = lm3s_getreg32(base + LM3S_GPIO_PCTL_OFFSET);
+  regval = getreg32(base + STLR_GPIO_PCTL_OFFSET);
   regval &= ~mask;
   regval |= (dfunc << (pin * 4));
-  lm3s_putreg32(regval, base + LM3S_GPIO_PCTL_OFFSET);
+  putreg32(regval, base + STLR_GPIO_PCTL_OFFSET);
 }
 
 /****************************************************************************
@@ -312,7 +305,7 @@ static inline void lm3s_gpio_digital_function(uint32_t base, uint32_t pin, uint3
  *
  ****************************************************************************/
 
-static inline void lm3s_gpiopadstrength(uint32_t base, uint32_t pin, uint32_t cfgset)
+static void gpiopadstrength(uint32_t base, uint32_t pin, uint32_t cfgset)
 {
   int strength = (cfgset & GPIO_STRENGTH_MASK) >> GPIO_STRENGTH_SHIFT;
   uint32_t regoffset;
@@ -336,7 +329,7 @@ static inline void lm3s_gpiopadstrength(uint32_t base, uint32_t pin, uint32_t cf
            * DRV8 bit in the GPIODR8R register are automatically cleared by hardware."
            */
 
-          regoffset = LM3S_GPIO_DR2R_OFFSET;
+          regoffset = STLR_GPIO_DR2R_OFFSET;
         }
         break;
 
@@ -349,7 +342,7 @@ static inline void lm3s_gpiopadstrength(uint32_t base, uint32_t pin, uint32_t cf
            * in the GPIO DR8R register are automatically cleared by hardware."
            */
 
-          regoffset = LM3S_GPIO_DR4R_OFFSET;
+          regoffset = STLR_GPIO_DR4R_OFFSET;
         }
         break;
 
@@ -374,21 +367,21 @@ static inline void lm3s_gpiopadstrength(uint32_t base, uint32_t pin, uint32_t cf
            * DRV4 bit in the GPIO DR4R register are automatically cleared by hardware."
            */
 
-          regoffset = LM3S_GPIO_DR8R_OFFSET;
+          regoffset = STLR_GPIO_DR8R_OFFSET;
         }
         break;
     }
 
   /* Set the selected pad strength and set/clear optional slew rate control */
 
-  regval = lm3s_getreg32(base + regoffset);
+  regval = getreg32(base + regoffset);
   regval |= pin;
-  lm3s_putreg32(regval, base + regoffset);
+  putreg32(regval, base + regoffset);
 
-  regval  = lm3s_getreg32(base + LM3S_GPIO_SLR_OFFSET);
+  regval  = getreg32(base + STLR_GPIO_SLR_OFFSET);
   regval &= slrclr;
   regval |= slrset;
-  lm3s_putreg32(regval, base + LM3S_GPIO_SLR_OFFSET);
+  putreg32(regval, base + STLR_GPIO_SLR_OFFSET);
 }
 
 /****************************************************************************
@@ -401,7 +394,7 @@ static inline void lm3s_gpiopadstrength(uint32_t base, uint32_t pin, uint32_t cf
  *
  ****************************************************************************/
 
-static inline void lm3s_gpiopadtype(uint32_t base, uint32_t pin, uint32_t cfgset)
+static void gpiopadtype(uint32_t base, uint32_t pin, uint32_t cfgset)
 {
   int padtype  = (cfgset & GPIO_PADTYPE_MASK) >> GPIO_PADTYPE_SHIFT;
 #if 0 /* always overwritten by lm3s_gpiofunc */
@@ -503,10 +496,10 @@ static inline void lm3s_gpiopadtype(uint32_t base, uint32_t pin, uint32_t cfgset
    */
 
 #if 0 /* always overwritten by lm3s_gpiofunc */
-  regval = lm3s_getreg32(base + LM3S_GPIO_ODR_OFFSET);
+  regval = getreg32(base + STLR_GPIO_ODR_OFFSET);
   regval &= ~odrclr;
   regval |= odrset;
-  lm3s_putreg32(regval, base + LM3S_GPIO_ODR_OFFSET);
+  putreg32(regval, base + STLR_GPIO_ODR_OFFSET);
 #endif
 
   /* Set/clear the GPIO PUR bit. "The GPIOPUR register is the pull-up control
@@ -515,10 +508,10 @@ static inline void lm3s_gpiopadtype(uint32_t base, uint32_t pin, uint32_t cfgset
    * corresponding bit in the GPIO Pull-Down Select (GPIOPDR) register ..."
    */
 
-  regval = lm3s_getreg32(base + LM3S_GPIO_PUR_OFFSET);
+  regval = getreg32(base + STLR_GPIO_PUR_OFFSET);
   regval &= ~purclr;
   regval |= purset;
-  lm3s_putreg32(regval, base + LM3S_GPIO_PUR_OFFSET);
+  putreg32(regval, base + STLR_GPIO_PUR_OFFSET);
 
   /* Set/clear the GPIO PDR bit. "The GPIOPDR register is the pull-down control
    * register. When a bit is set to 1, it enables a weak pull-down resistor on the
@@ -526,10 +519,10 @@ static inline void lm3s_gpiopadtype(uint32_t base, uint32_t pin, uint32_t cfgset
    * the corresponding bit in the GPIO Pull-Up Select (GPIOPUR) register ..."
    */
 
-  regval = lm3s_getreg32(base + LM3S_GPIO_PDR_OFFSET);
+  regval = getreg32(base + STLR_GPIO_PDR_OFFSET);
   regval &= ~pdrclr;
   regval |= pdrset;
-  lm3s_putreg32(regval, base + LM3S_GPIO_PDR_OFFSET);
+  putreg32(regval, base + STLR_GPIO_PDR_OFFSET);
 
   /* Set/clear the GPIO DEN bit. "The GPIODEN register is the digital enable
    * register. By default, with the exception of the GPIO signals used for JTAG/SWD
@@ -541,10 +534,10 @@ static inline void lm3s_gpiopadtype(uint32_t base, uint32_t pin, uint32_t cfgset
    */
 
 #if 0 /* always overwritten by lm3s_gpiofunc */
-  regval = lm3s_getreg32(base + LM3S_GPIO_DEN_OFFSET);
+  regval = getreg32(base + STLR_GPIO_DEN_OFFSET);
   regval &= ~denclr;
   regval |= denset;
-  lm3s_putreg32(regval, base + LM3S_GPIO_DEN_OFFSET);
+  putreg32(regval, base + STLR_GPIO_DEN_OFFSET);
 #endif
 }
 
@@ -556,10 +549,10 @@ static inline void lm3s_gpiopadtype(uint32_t base, uint32_t pin, uint32_t cfgset
  *
  ****************************************************************************/
 
-static inline void lm3s_initoutput(uint32_t cfgset)
+static void initoutput(uint32_t cfgset)
 {
   bool value = ((cfgset & GPIO_VALUE_MASK) != GPIO_VALUE_ZERO);
-  lm3s_gpiowrite(cfgset, value);
+  gpiowrite(cfgset, value);
 }
 
 /****************************************************************************
@@ -570,7 +563,7 @@ static inline void lm3s_initoutput(uint32_t cfgset)
  *
  ****************************************************************************/
 
-static inline void lm3s_interrupt(uint32_t base, uint32_t pin, uint32_t cfgset)
+static void interrupt(uint32_t base, uint32_t pin, uint32_t cfgset)
 {
   int inttype = (cfgset & GPIO_INT_MASK) >> GPIO_INT_SHIFT;
   uint32_t regval;
@@ -589,18 +582,18 @@ static inline void lm3s_interrupt(uint32_t base, uint32_t pin, uint32_t cfgset)
    * on that pin. All bits are cleared by a reset."
    */
 
-  regval  = lm3s_getreg32(base + LM3S_GPIO_IM_OFFSET);
+  regval  = getreg32(base + STLR_GPIO_IM_OFFSET);
   regval &= ~pin;
-  lm3s_putreg32(regval, base + LM3S_GPIO_IM_OFFSET);
+  putreg32(regval, base + STLR_GPIO_IM_OFFSET);
 
   /* "The GPIOICR register is the interrupt clear register. Writing a 1 to a bit
    * in this register clears the corresponding interrupt edge detection logic
    * register. Writing a 0 has no effect."
    */
 
-  regval  = lm3s_getreg32(base + LM3S_GPIO_ICR_OFFSET);
+  regval  = getreg32(base + STLR_GPIO_ICR_OFFSET);
   regval |= pin;
-  lm3s_putreg32(regval, base + LM3S_GPIO_ICR_OFFSET);
+  putreg32(regval, base + STLR_GPIO_ICR_OFFSET);
 
   /* Assume rising edge */
 
@@ -656,10 +649,10 @@ static inline void lm3s_interrupt(uint32_t base, uint32_t pin, uint32_t cfgset)
    * by a reset.
    */
 
-  regval  = lm3s_getreg32(base + LM3S_GPIO_IS_OFFSET);
+  regval  = getreg32(base + STLR_GPIO_IS_OFFSET);
   regval &= isclr;
   regval |= isset;
-  lm3s_putreg32(regval, base + LM3S_GPIO_IS_OFFSET);
+  putreg32(regval, base + STLR_GPIO_IS_OFFSET);
 
   /* "The GPIO IBE register is the interrupt both-edges register. When the
    * corresponding bit in the GPIO Interrupt Sense (GPIO IS) register ... is
@@ -670,10 +663,10 @@ static inline void lm3s_interrupt(uint32_t base, uint32_t pin, uint32_t cfgset)
    * are cleared by a reset.
    */
 
-  regval  = lm3s_getreg32(base + LM3S_GPIO_IBE_OFFSET);
+  regval  = getreg32(base + STLR_GPIO_IBE_OFFSET);
   regval &= ibeclr;
   regval |= ibeset;
-  lm3s_putreg32(regval, base + LM3S_GPIO_IBE_OFFSET);
+  putreg32(regval, base + STLR_GPIO_IBE_OFFSET);
 
   /* "The GPIOIEV register is the interrupt event register. Bits set to
    * High in GPIO IEV configure the corresponding pin to detect rising edges
@@ -683,10 +676,10 @@ static inline void lm3s_interrupt(uint32_t base, uint32_t pin, uint32_t cfgset)
    * value in GPIOIS. All bits are cleared by a reset.
    */
 
-  regval  = lm3s_getreg32(base + LM3S_GPIO_IEV_OFFSET);
+  regval  = getreg32(base + STLR_GPIO_IEV_OFFSET);
   regval &= iveclr;
   regval |= iveset;
-  lm3s_putreg32(regval, base + LM3S_GPIO_IEV_OFFSET);
+  putreg32(regval, base + STLR_GPIO_IEV_OFFSET);
 }
 
 /****************************************************************************
@@ -701,7 +694,7 @@ static inline void lm3s_interrupt(uint32_t base, uint32_t pin, uint32_t cfgset)
  *
  ****************************************************************************/
 
-int lm3s_configgpio(uint32_t cfgset)
+int configgpio(uint32_t cfgset)
 {
   unsigned int func;
   unsigned int dfunc;
@@ -709,7 +702,6 @@ int lm3s_configgpio(uint32_t cfgset)
   unsigned int pinno;
   uint32_t     pin;
   uint32_t     base;
-  uint32_t     regval;
 
   /* Decode the basics */
 
@@ -721,51 +713,49 @@ int lm3s_configgpio(uint32_t cfgset)
 
   /* Get the base address associated with the GPIO port */
 
-  base = lm3s_gpiobaseaddress(port);
+  base = gpiobaseaddress(port);
 
   /* Enable clocking for this GPIO peripheral. "To use the GPIO, the peripheral
    * clock must be enabled by setting the appropriate GPIO Port bit field (GPIOn)
    * in the RCGC2 register."
    */
 
-  regval = lm3s_getreg32(LM3S_SYSCON_RCGC2);
-  regval |= SYSCON_RCGC2_GPIO(port);
-  lm3s_putreg32(regval, LM3S_SYSCON_RCGC2);
+  gpio_clock_ctrl(port, SYS_ENABLE_CLOCK);
 
   /* First, set the port to digital input.  This is the safest state in which
    * to perform reconfiguration.
    */
 
-  lm3s_gpiofunc(base, pinno, &g_funcbits[0]);
+  gpiofunc(base, pinno, &g_funcbits[0]);
 
   /* Then set up pad strengths and pull-ups.  These setups should be done before
    * setting up the function because some function settings will over-ride these
    * user options.
    */
 
-  lm3s_gpiopadstrength(base, pin, cfgset);
-  lm3s_gpiopadtype(base, pin, cfgset);
+  gpiopadstrength(base, pin, cfgset);
+  gpiopadtype(base, pin, cfgset);
 
   /* Then set up the real pin function */
 
-  lm3s_gpiofunc(base, pinno, &g_funcbits[func]);
+  gpiofunc(base, pinno, &g_funcbits[func]);
   if( dfunc )
-    lm3s_gpio_digital_function(base, pinno, dfunc);
+    gpio_digital_function(base, pinno, dfunc);
 
   /* Special GPIO digital output pins */
 
   if (func == 1 || func == 3)
-    {
-      lm3s_initoutput(cfgset);
-    }
+  {
+    initoutput(cfgset);
+  }
 
 
   /* Special setup for interrupt GPIO pins */
 
   else if (func == 7)
-    {
-      lm3s_interrupt(base, pin, cfgset);
-    }
+  {
+    interrupt(base, pin, cfgset);
+  }
 
   return 0;
 }
@@ -778,7 +768,7 @@ int lm3s_configgpio(uint32_t cfgset)
  *
  ****************************************************************************/
 
-void lm3s_gpiowrite(uint32_t pinset, int value)
+void gpiowrite(uint32_t pinset, int value)
 {
   unsigned int port;
   unsigned int pinno;
@@ -791,7 +781,7 @@ void lm3s_gpiowrite(uint32_t pinset, int value)
 
   /* Get the base address associated with the GPIO port */
 
-  base  = lm3s_gpiobaseaddress(port);
+  base  = gpiobaseaddress(port);
 
   /* "The GPIO DATA register is the data register. In software control mode,
    *  values written in the GPIO DATA register are transferred onto the GPIO
@@ -805,7 +795,7 @@ void lm3s_gpiowrite(uint32_t pinset, int value)
    * "... All bits are cleared by a reset."
    */
 
-  lm3s_putreg32((uint32_t)value << pinno, base + LM3S_GPIO_DATA_OFFSET + (1 << (pinno + 2)));
+  putreg32((uint32_t)value << pinno, base + STLR_GPIO_DATA_OFFSET + (1 << (pinno + 2)));
 }
 
 /****************************************************************************
@@ -816,7 +806,7 @@ void lm3s_gpiowrite(uint32_t pinset, int value)
  *
  ****************************************************************************/
 
-int lm3s_gpioread(uint32_t pinset, int value)
+int gpioread(uint32_t pinset, int value)
 {
   unsigned int port;
   unsigned int pinno;
@@ -829,7 +819,7 @@ int lm3s_gpioread(uint32_t pinset, int value)
 
   /* Get the base address associated with the GPIO port */
 
-  base = lm3s_gpiobaseaddress(port);
+  base = gpiobaseaddress(port);
 
   /* "... the values read from this register are determined for each bit
    *  by the mask bit derived from the address used to access the data register,
@@ -844,10 +834,10 @@ int lm3s_gpioread(uint32_t pinset, int value)
    *  are cleared by a reset."
    */
 
-  return (lm3s_getreg32(base + LM3S_GPIO_DATA_OFFSET + (1 << (pinno + 2))) != 0);
+  return (getreg32(base + STLR_GPIO_DATA_OFFSET + (1 << (pinno + 2))) != 0);
 }
 
-void lm3s_gpioirqenable(uint32_t pinset)
+void gpioirqenable(uint32_t pinset)
 {
   unsigned int port;
   unsigned int pinno;
@@ -861,14 +851,14 @@ void lm3s_gpioirqenable(uint32_t pinset)
 
   /* Get the base address associated with the GPIO port */
 
-  base = lm3s_gpiobaseaddress(port);
+  base = gpiobaseaddress(port);
 
-  regval = lm3s_getreg32(base + LM3S_GPIO_IM_OFFSET);
+  regval = getreg32(base + STLR_GPIO_IM_OFFSET);
   regval |= (1 << pinno);
-  lm3s_putreg32(regval, base + LM3S_GPIO_IM_OFFSET);
+  putreg32(regval, base + STLR_GPIO_IM_OFFSET);
 }
 
-void lm3s_gpioirqdisable(uint32_t pinset)
+void gpioirqdisable(uint32_t pinset)
 {
   unsigned int port;
   unsigned int pinno;
@@ -882,14 +872,14 @@ void lm3s_gpioirqdisable(uint32_t pinset)
 
   /* Get the base address associated with the GPIO port */
 
-  base = lm3s_gpiobaseaddress(port);
+  base = gpiobaseaddress(port);
 
-  regval = lm3s_getreg32(base + LM3S_GPIO_IM_OFFSET);
+  regval = getreg32(base + STLR_GPIO_IM_OFFSET);
   regval &= ~(1 << pinno);
-  lm3s_putreg32(regval, base + LM3S_GPIO_IM_OFFSET);
+  putreg32(regval, base + STLR_GPIO_IM_OFFSET);
 }
 
-void lm3s_gpioclearint(uint32_t pinset)
+void gpioclearint(uint32_t pinset)
 {
   unsigned int port;
   unsigned int pinno;
@@ -903,10 +893,10 @@ void lm3s_gpioclearint(uint32_t pinset)
 
   /* Get the base address associated with the GPIO port */
 
-  base = lm3s_gpiobaseaddress(port);
+  base = gpiobaseaddress(port);
 
-  regval = lm3s_getreg32(base + LM3S_GPIO_ICR_OFFSET);
+  regval = getreg32(base + STLR_GPIO_ICR_OFFSET);
   regval &= ~(1 << pinno);
-  lm3s_putreg32(regval, base + LM3S_GPIO_ICR_OFFSET);
+  putreg32(regval, base + STLR_GPIO_ICR_OFFSET);
 }
 

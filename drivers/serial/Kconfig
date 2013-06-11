@@ -1052,34 +1052,53 @@ config SERIAL_MCF
 	help
 	  This serial driver supports the Freescale Coldfire serial ports.
 
-config SERIAL_LM3S
-  bool "Texas Instruments LM3S serial support"
-  depends on ARCH_LM3S1D21
+config SERIAL_STELLARIS
+  bool "Texas Instruments Stellaris serial support"
+  depends on PLAT_STELLARIS
   select SERIAL_CORE
   help
-    This serial driver supports the Texas Instruments LM3S serial ports.
+    This serial driver supports the Texas Instruments Stellaris serial ports.
 
-config LM3S_EARLY_CONSOLE_UART0
-  bool "Setup early console to UART0 for Texas Instruments LM3S"
-  depends on SERIAL_LM3S
+choice 
+	prompt "Early console for Texas Instruments Stellaris"
+	depends on SERIAL_STELLARIS && EARLY_PRINTK
+	default STELLARIS_EARLY_CONSOLE_UART0
+
+config STELLARIS_EARLY_CONSOLE_UART0
+  bool "Setup early console to UART0 for Texas Instruments Stellaris"
+  depends on SERIAL_STELLARIS
   help
-    Setup early console to UART0 for Texas Instruments LM3S
+    Setup early console to UART0 for Texas Instruments Stellaris
 
-config SERIAL_LM3S_BAUDRATE
-  int "Default baudrate for Texas Instruments LM3S serial ports"
-  depends on SERIAL_LM3S
+config STELLARIS_EARLY_CONSOLE_UART1
+  bool "Setup early console to UART1 for Texas Instruments Stellaris"
+  depends on SERIAL_STELLARIS
+  help
+    Setup early console to UART1 for Texas Instruments Stellaris
+
+config STELLARIS_EARLY_CONSOLE_UART2
+  bool "Setup early console to UART2 for Texas Instruments Stellaris"
+  depends on SERIAL_STELLARIS
+  help
+    Setup early console to UART2 for Texas Instruments Stellaris
+
+endchoice
+
+config SERIAL_STELLARIS_BAUDRATE
+  int "Default baudrate for Texas Instruments Stellaris serial ports"
+  depends on SERIAL_STELLARIS
   default 115200
   help
     This setting lets you define what the default baudrate is for the
-    Texas Instruments LM3S serial ports. The usual default varies from board to board,
+    Texas Instruments Stellaris serial ports. The usual default varies from board to board,
     and this setting is a way of catering for that.
 
-config SERIAL_LM3S_CONSOLE
-  bool "Texas Instruments LM3S serial console support"
-  depends on SERIAL_LM3S
+config SERIAL_STELLARIS_CONSOLE
+  bool "Texas Instruments Stellaris serial console support"
+  depends on SERIAL_STELLARIS
   select SERIAL_CORE_CONSOLE
   help
-    Enable a Texas Instruments LM3S internal serial port to be the system console.
+    Enable a Texas Instruments Stellaris internal serial port to be the system console.
 
 config SERIAL_MCF_BAUDRATE
 	int "Default baudrate for Coldfire serial ports"

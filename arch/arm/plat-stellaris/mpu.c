@@ -1,5 +1,5 @@
 /*
- * MPU support for LM3S
+ * MPU support for Stellaris
  *
  * Author: Max Nekludov <macscomp@gmail.com>
  *
@@ -113,34 +113,34 @@ void update_protections(struct mm_struct *mm)
 	for (i = 0; i < MPU_REGIONS_COUNT; i++)
 	{
 		uint32_t regval;
-		lm3s_putreg32(i, LM3S_MPU_NUMBER);
-		regval = lm3s_getreg32(LM3S_MPU_ATTR);
+		putreg32(i, STLR_MPU_NUMBER);
+		regval = getreg32(STLR_MPU_ATTR);
 		regval &= ~MPU_ATTR_SRD_MASK;
 		regval |= (~(mpu_attr_regs[i])) & MPU_ATTR_SRD_MASK;
-		lm3s_putreg32(regval, LM3S_MPU_ATTR);
+		putreg32(regval, STLR_MPU_ATTR);
 	}
 	asm("dsb":::);
 }
 
 /* Initialize Memory Protection Unit */
-static int __init lm3s_init_mpu(void)
+static int __init init_mpu(void)
 {
 	int i;
 	uint32_t base = CONFIG_DRAM_BASE;
 	/* Enable MPU and allow access for privilaged code for all address space */
-	lm3s_putreg32(MPU_CTRL_ENABLE_MASK | MPU_CTRL_PRIVDEFEN_MASK, LM3S_MPU_CTRL);
+	putreg32(MPU_CTRL_ENABLE_MASK | MPU_CTRL_PRIVDEFEN_MASK, STLR_MPU_CTRL);
 	asm("dsb":::);
 
 	for (i = 0; i < MPU_REGIONS_COUNT; i++)
 	{
-		lm3s_putreg32(i, LM3S_MPU_NUMBER);
-		lm3s_putreg32(base, LM3S_MPU_BASE);
-		lm3s_putreg32((MPU_ATTR_S_MASK | MPU_ATTR_C_MASK | MPU_ATTR_B_MASK) | // Enable S, C, B bits (external SRAM)
+		putreg32(i, STLR_MPU_NUMBER);
+		putreg32(base, STLR_MPU_BASE);
+		putreg32((MPU_ATTR_S_MASK | MPU_ATTR_C_MASK | MPU_ATTR_B_MASK) | // Enable S, C, B bits (external SRAM)
 		              (0x03 << MPU_ATTR_AP_SHIFT) |                           // Set AP to 0x03 (enable full access)
 		              MPU_ATTR_SRD_MASK |                                     // Disable all subregions
 		              MPU_ATTR_ENABLE_MASK |                                  // Enable region
 		              ((0x13) << MPU_ATTR_SIZE_SHIFT),                        // Set region size 1MiB = 2^(0x13+1)
-									LM3S_MPU_ATTR);
+									STLR_MPU_ATTR);
 
 		asm("dsb":::);
 		base += MPU_REGION_SIZE;
@@ -149,4 +149,4 @@ static int __init lm3s_init_mpu(void)
 	return 0;
 }
 
-device_initcall(lm3s_init_mpu);
+device_initcall(init_mpu);

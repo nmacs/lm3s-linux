@@ -39,9 +39,9 @@ ENDPROC(__invalid_entry)
 
 __exception_entry:
 	v7m_exception_entry
-#ifdef CONFIG_ARCH_LM3S1D21
+#ifdef CONFIG_PLAT_STELLARIS
 	mov r0, sp
-	bl lm3s_die
+	bl stellaris_die
 #else
 	ldr r0, =strex
 	mov r1, sp
@@ -52,7 +52,7 @@ ENDPROC(__exception_entry)
 
 strerr:	.asciz	"\nUnhandled exception: IPSR = %08lx LR = %08lx\n"
 
-#ifndef CONFIG_ARCH_LM3S1D21
+#ifndef CONFIG_PLAT_STELLARIS
 strex: .asciz "MCU exception"
 #endif
 
@@ -148,10 +148,12 @@ ENTRY(vector_table)
 	.long	__invalid_entry		@ 13 - Reserved
 	.long	__pendsv_entry		@ 14 - PendSV
 	.long	__invalid_entry		@ 15 - SysTick
-#ifndef CONFIG_ARCH_LM3S1D21
-	.rept	64 - 16 @ 16..64 - External Interrupts
+#if   defined(CONFIG_ARCH_LM3S1D21)
+	.rept 71 - 16 @ 16..70 - External Interrupts
+#elif defined(CONFIG_ARCH_TM4C12)
+	.rept 114 - 16 @ 16..70 - External Interrupts
 #else
-  .rept 71 - 16 @ 16..70 - External Interrupts
+	.rept	64 - 16 @ 16..64 - External Interrupts
 #endif
 	.long __irq_entry
 	.endr

@@ -424,7 +424,7 @@ config CPU_V7
 # ARMv7m
 config CPU_V7M
 	bool "Support ARMv7-M processors"
-	depends on (MACH_MPS || ARCH_LM3S1D21)
+	depends on (MACH_MPS || ARCH_LM3S || ARCH_TM4C)
 	select THUMB2_KERNEL
 	select ARM_THUMB
 	select CPU_32v7M
