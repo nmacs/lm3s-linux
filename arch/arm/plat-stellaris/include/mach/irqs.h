@@ -38,6 +38,7 @@
 
 #define STLR_GPIOA_IRQ    0
 #define STLR_GPIOB_IRQ    1
+#define STLR_GPIOF_IRQ    30
 #define STLR_GPIOG_IRQ    31
 
 #if defined(CONFIG_ARCH_LM3S)

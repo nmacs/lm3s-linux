@@ -106,7 +106,7 @@ static struct spi_board_info spi_devices[] = {
     .max_speed_hz  = 5 * 1000000,
     .bus_num       = 0,
     .chip_select   = 2,
-    .irq           = STLR_GPIOG_IRQ, // ETH IRQ on PG5
+    .irq           = STLR_GPIOF_IRQ, // ETH IRQ on PG5
   },
 };
 
