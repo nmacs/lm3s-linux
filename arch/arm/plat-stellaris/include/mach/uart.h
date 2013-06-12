@@ -253,7 +253,8 @@
 #define UART_IM_PEIM               (1 << 8)  /* Bit 8:  UART Parity Error Interrupt Mask */
 #define UART_IM_BEIM               (1 << 9)  /* Bit 9:  UART Break Error Interrupt Mask */
 #define UART_IM_OEIM               (1 << 10) /* Bit 10: UART Overrun Error Interrupt Mask */
-
+#define UART_IM_DMARX              (1 << 16) /* Bit 16: UART Receive DMA Interrupt Mask */
+#define UART_IM_DMATX              (1 << 17) /* Bit 17: UART Transmit DMA Interrupt Mask */
 
 /* UART Raw Interrupt Status (RIS), offset 0x03c */
 
@@ -264,6 +265,8 @@
 #define UART_RIS_PERIS             (1 << 8)  /* Bit 8:  UART Parity Error Raw Interrupt Status */
 #define UART_RIS_BERIS             (1 << 9)  /* Bit 9:  UART Break Error Raw Interrupt Status */
 #define UART_RIS_OERIS             (1 << 10) /* Bit 10: UART Overrun Error Raw Interrupt Status */
+#define UART_RIS_DMARX             (1 << 16) /* Bit 16: UART Receive DMA Raw Interrupt Status */
+#define UART_RIS_DMATX             (1 << 17) /* Bit 17: UART Transmit DMA Raw Interrupt Status */
 
 /* UART Masked Interrupt Status (MIS), offset 0x040 */
 
@@ -283,8 +286,9 @@
 #define UART_ICR_FEIC             (1 << 7)  /* Bit 7:  Framing Error Interrupt Clear */
 #define UART_ICR_PEIC             (1 << 8)  /* Bit 8:  Parity Error Interrupt Clear */
 #define UART_ICR_BEIC             (1 << 9)  /* Bit 9:  Break Error Interrupt Clear */
-#define UART_ICR_OEIC             (1 << 10) /* Bit 10: Overrun Error Interrupt Clear
- */
+#define UART_ICR_OEIC             (1 << 10) /* Bit 10: Overrun Error Interrupt Clear */
+#define UART_ICR_DMARX            (1 << 16) /* Bit 16: UART Receive DMA Raw Interrupt Clear */
+#define UART_ICR_DMATX            (1 << 17) /* Bit 17: UART Transmit DMA Raw Interrupt Clear */
 
 /*  UART DMA Control (UARTDMACTL), offset 0x048 */
 

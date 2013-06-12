@@ -102,8 +102,13 @@ static void enable_uart(struct uart_port *port)
 
 #ifdef CONFIG_STELLARIS_DMA
 	dev_vdbg(port->dev, "%s enable port dma\n", __func__);
+#if defined(CONFIG_ARCH_TM4C)
+	putreg32(UART_IM_DMARX | UART_IM_DMATX,
+	              port->membase + STLR_UART_IM_OFFSET);
+#elif defined(CONFIG_ARCH_LM3S)
 	putreg32(UART_DMACTL_TXDMAE | UART_DMACTL_RXDMAE,
 	              port->membase + STLR_UART_DMACTL_OFFSET);
+#endif
 	pp->tx_busy = 0;
 	pp->rx_busy = 0;
 #endif
@@ -448,6 +453,16 @@ static void __sram start_rx_dma(struct stellaris_serial_port *pp)
 	               DMA_XFER_DEVICE_TO_MEMORY | DMA_XFER_UNIT_BYTE | DMA_XFER_MODE_PINGPONG | DMA_XFER_ALT);
 
 	dma_start_xfer(pp->dma_rx_channel);
+	
+#ifdef CONFIG_ARCH_TM4C
+	{
+		uint32_t regval2 = getreg32(port->membase + STLR_UART_DMACTL_OFFSET);
+		regval2 |= UART_DMACTL_RXDMAE;
+		
+		dev_vdbg(port->dev, "%s start DMA RX\n", __func__);
+		putreg32(regval2, port->membase + STLR_UART_DMACTL_OFFSET);
+	}
+#endif
 }
 
 static void __sram rx_chars(struct stellaris_serial_port *pp);
@@ -605,6 +620,14 @@ static int __sram tx_chars(struct stellaris_serial_port *pp)
 	dev_vdbg(port->dev, "%s: dma_ch %x, xfer_size %u, dst %p\n",
 					 __func__, pp->dma_tx_channel, xfer_size, port->membase + STLR_UART_DR_OFFSET);
 
+#ifdef CONFIG_ARCH_TM4C
+	{
+		uint32_t regval2 = getreg32(port->membase + STLR_UART_DMACTL_OFFSET);
+		regval2 |= UART_DMACTL_TXDMAE;
+		putreg32(regval2, port->membase + STLR_UART_DMACTL_OFFSET);
+	}
+#endif
+
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
     uart_write_wakeup(port);
 #else
@@ -640,11 +663,12 @@ static irqreturn_t __sram interrupt(int irq, void *data)
   uint32_t isr;
 
   isr = getreg32(port->membase + STLR_UART_MIS_OFFSET);
-  putreg32(0xFFFFFFFF, port->membase + STLR_UART_ICR_OFFSET);
+  putreg32(isr, port->membase + STLR_UART_ICR_OFFSET);
 
 	dev_vdbg(port->dev, "%s ISR 0x%x\n", __func__, isr);
 
 #ifdef CONFIG_STELLARIS_DMA
+#if defined(CONFIG_ARCH_LM3S)
 	if (dma_ack_interrupt(pp->dma_rx_channel))
 	{
 		dev_vdbg(port->dev, "%s RX\n", __func__);
@@ -656,6 +680,29 @@ static irqreturn_t __sram interrupt(int irq, void *data)
 		dev_vdbg(port->dev, "%s TX\n", __func__);
 		tx_chars(pp);
 	}
+#elif defined(CONFIG_ARCH_TM4C)
+	if (isr & UART_RIS_DMARX)
+	{
+		uint32_t regval2 = getreg32(port->membase + STLR_UART_DMACTL_OFFSET);
+		regval2 &= ~UART_DMACTL_RXDMAE;
+		putreg32(regval2, port->membase + STLR_UART_DMACTL_OFFSET);
+		putreg32(UART_ICR_DMARX, port->membase + STLR_UART_ICR_OFFSET);
+
+		dev_vdbg(port->dev, "%s RX\n", __func__);
+		rx_chars(pp);
+	}
+
+	if (isr & UART_RIS_DMATX)
+	{
+		uint32_t regval2 = getreg32(port->membase + STLR_UART_DMACTL_OFFSET);
+		regval2 &= ~UART_DMACTL_TXDMAE;
+		putreg32(regval2, port->membase + STLR_UART_DMACTL_OFFSET);
+		putreg32(UART_ICR_DMATX, port->membase + STLR_UART_ICR_OFFSET);
+
+		dev_vdbg(port->dev, "%s TX\n", __func__);
+		tx_chars(pp);
+	}
+#endif
 #else
   if (isr & (UART_MIS_RXMIS | UART_MIS_RTMIS))
 	{
