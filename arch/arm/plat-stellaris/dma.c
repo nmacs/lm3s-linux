@@ -23,7 +23,8 @@
 //void printascii(const char *str);
 
 #define __dma_channels __sramdata __attribute__((aligned(DMA_CHANNEL_TABLE_ALIGNMENT)))
-#define CHANNEL_NUMBER(channel) ((channel) & 0xff)
+#define CHANNEL_NUMBER(channel)    (((channel) & DMA_CHANNEL_NUMBER_MASK) >> DMA_CHANNEL_NUMBER_OFFSET)
+#define PERIPHERAL_NUMBER(channel) (((channel) & DMA_CHANNEL_PERIPHERAL_MASK) >> DMA_CHANNEL_PERIPHERAL_OFFSET)
 
 struct stellaris_dma_channel {
   uint32_t DMASRCENDP;
@@ -130,12 +131,23 @@ void dma_setup_channel(unsigned int channel, unsigned int config)
 	int ch = CHANNEL_NUMBER(channel);
 	int chmask = 1 << ch;
 
+#if defined(CONFIG_ARCH_TM4C)
+	int peripheral = PERIPHERAL_NUMBER(channel);
+	
+	int DMACHMAPn = STLR_DMA_CHMAP0 + (ch >> 3) * 4;
+	int DMACHMAPn_shift = (ch & 0x7) * 4;
+	
+	uint32_t regval = getreg32(DMACHMAPn);
+	regval |= peripheral << DMACHMAPn_shift;
+	putreg32(regval, DMACHMAPn);
+#elif defined(CONFIG_ARCH_LM3S)
 	if( channel & DMA_CHANNEL_ALT )
 	{
 		uint32_t regval = getreg32(STLR_DMA_CHASGN);
 		regval |= chmask;
 		putreg32(regval, STLR_DMA_CHASGN);
 	}
+#endif
 
 	if( config & DMA_HIGH_PRIORITY )
 		putreg32(chmask, STLR_DMA_PRIOSET);
