@@ -84,6 +84,11 @@ static void enable_uart(struct uart_port *port)
 	dev_vdbg(port->dev, "%s\n", __func__);
 
 	uart_clock_ctrl(pp->uart_index, SYS_ENABLE_CLOCK);
+	
+#ifdef CONFIG_UART_CLOCK_TICK_RATE
+	/* Select alternative clock source */
+	putreg32(UART_UARTCC_CS_ALT, port->membase + STLR_UART_UARTCC_OFFSET);
+#endif
 
   /* Clear mask, so no surprise interrupts. */
   putreg32(0, port->membase + STLR_UART_IM_OFFSET);

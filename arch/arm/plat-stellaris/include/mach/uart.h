@@ -61,6 +61,7 @@
 #define STLR_UART_MIS_OFFSET       0x040 /* UART Masked Interrupt Status */
 #define STLR_UART_ICR_OFFSET       0x044 /* UART Interrupt Clear */
 #define STLR_UART_DMACTL_OFFSET    0X048 /* UART DMA Control */
+#define STLR_UART_UARTCC_OFFSET    0xFC8 /* UART Clock Configuration */
 #define STLR_UART_PERIPHID4_OFFSET 0xfd0 /* UART Peripheral Identification 4 */
 #define STLR_UART_PERIPHID5_OFFSET 0xfd4 /* UART Peripheral Identification 5 */
 #define STLR_UART_PERIPHID6_OFFSET 0xfd8 /* UART Peripheral Identification 6 */
@@ -295,6 +296,11 @@
 #define UART_DMACTL_RXDMAE        (1 << 0) /* Bit 0: Receive DMA Enable */
 #define UART_DMACTL_TXDMAE        (1 << 1) /* Bit 1: Transmit DMA Enable */
 #define UART_DMACTL_DMAERR        (1 << 2) /* Bit 2: DMA on Error */
+
+/* UART Clock Configuration (UARTCC), offset 0xFC8 */
+
+#define UART_UARTCC_CS_SYSTEM     0x0
+#define UART_UARTCC_CS_ALT        0x5
 
 /* UART Peripheral Identification 4 (PERIPHID4), offset 0xfd0 */
 
