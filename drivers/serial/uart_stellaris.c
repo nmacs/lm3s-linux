@@ -133,6 +133,60 @@ static void disable_uart(struct uart_port *port)
   uart_clock_ctrl(pp->uart_index, SYS_DISABLE_CLOCK);
 }
 
+static void start_dma_rx(struct stellaris_serial_port *pp)
+{
+	dev_vdbg(pp->port.dev, "%s\n", __func__);
+	dma_start_xfer(pp->dma_rx_channel);
+#ifdef CONFIG_ARCH_TM4C
+	{
+		uint32_t regval2 = getreg32(pp->port.membase + STLR_UART_DMACTL_OFFSET);
+		regval2 |= UART_DMACTL_RXDMAE;
+		putreg32(regval2, pp->port.membase + STLR_UART_DMACTL_OFFSET);
+	}
+#endif
+}
+
+static void stop_dma_rx(struct stellaris_serial_port *pp)
+{
+	dev_vdbg(pp->port.dev, "%s\n", __func__);
+	dma_stop_xfer(pp->dma_rx_channel);
+#ifdef CONFIG_ARCH_TM4C
+	{
+		uint32_t regval2 = getreg32(pp->port.membase + STLR_UART_DMACTL_OFFSET);
+		regval2 &= ~UART_DMACTL_RXDMAE;
+		putreg32(regval2, pp->port.membase + STLR_UART_DMACTL_OFFSET);
+		putreg32(UART_ICR_DMARX, pp->port.membase + STLR_UART_ICR_OFFSET);
+	}
+#endif
+}
+
+static void start_dma_tx(struct stellaris_serial_port *pp)
+{
+	dev_vdbg(pp->port.dev, "%s\n", __func__);
+	dma_start_xfer(pp->dma_tx_channel);
+#ifdef CONFIG_ARCH_TM4C
+	{
+		uint32_t regval2 = getreg32(pp->port.membase + STLR_UART_DMACTL_OFFSET);
+		regval2 |= UART_DMACTL_TXDMAE;
+		putreg32(regval2, pp->port.membase + STLR_UART_DMACTL_OFFSET);
+	}
+#endif
+}
+
+static void stop_dma_tx(struct stellaris_serial_port *pp)
+{
+	dev_vdbg(pp->port.dev, "%s\n", __func__);
+	dma_stop_xfer(pp->dma_tx_channel);
+#ifdef CONFIG_ARCH_TM4C
+	{
+		uint32_t regval2 = getreg32(pp->port.membase + STLR_UART_DMACTL_OFFSET);
+		regval2 &= ~UART_DMACTL_TXDMAE;
+		putreg32(regval2, pp->port.membase + STLR_UART_DMACTL_OFFSET);
+		putreg32(UART_ICR_DMATX, pp->port.membase + STLR_UART_ICR_OFFSET);
+	}
+#endif
+}
+
 /****************************************************************************/
 
 static unsigned int tx_empty(struct uart_port *port)
@@ -229,7 +283,7 @@ static void stop_rx(struct uart_port *port)
   spin_lock_irqsave(&port->lock, flags);
 
 #ifdef CONFIG_STELLARIS_DMA
-	dma_stop_xfer(pp->dma_rx_channel);
+	stop_dma_rx(pp);
 #else
   regval = getreg32(port->membase + STLR_UART_IM_OFFSET);
   regval &= ~(UART_IM_RXIM | UART_IM_RTIM);
@@ -301,11 +355,14 @@ static int startup(struct uart_port *port)
 static void shutdown(struct uart_port *port)
 {
   unsigned long flags;
+	struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 
   dev_dbg(port->dev, "%s\n", __func__);
 
   spin_lock_irqsave(&port->lock, flags);
 
+	stop_dma_rx(pp);
+	stop_dma_tx(pp);
   disable_uart(port);
 
   spin_unlock_irqrestore(&port->lock, flags);
@@ -452,17 +509,7 @@ static void __sram start_rx_dma(struct stellaris_serial_port *pp)
 	               RX_SLOT_SIZE(pp) - 1,
 	               DMA_XFER_DEVICE_TO_MEMORY | DMA_XFER_UNIT_BYTE | DMA_XFER_MODE_PINGPONG | DMA_XFER_ALT);
 
-	dma_start_xfer(pp->dma_rx_channel);
-	
-#ifdef CONFIG_ARCH_TM4C
-	{
-		uint32_t regval2 = getreg32(port->membase + STLR_UART_DMACTL_OFFSET);
-		regval2 |= UART_DMACTL_RXDMAE;
-		
-		dev_vdbg(port->dev, "%s start DMA RX\n", __func__);
-		putreg32(regval2, port->membase + STLR_UART_DMACTL_OFFSET);
-	}
-#endif
+	start_dma_rx(pp);
 }
 
 static void __sram rx_chars(struct stellaris_serial_port *pp);
@@ -484,10 +531,10 @@ static void __sram do_rx_chars(struct work_struct *work)
 	tty_flip_buffer_push(tty);
 	tty->low_latency = old_low_latency;
 
-	local_irq_save(flags);
+	spin_lock_irqsave(&port->lock, flags);
 	pp->rx_busy = 0;
 	rx_chars(pp);
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 #endif
 
@@ -587,7 +634,7 @@ static int __sram tx_chars(struct stellaris_serial_port *pp)
   if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
 		dev_vdbg(port->dev, "%s TX complete\n", __func__);
 #ifdef CONFIG_STELLARIS_DMA
-		dma_stop_xfer(pp->dma_tx_channel);
+		stop_dma_tx(pp);
 		pp->tx_busy = 0;
 #else
 		regval = getreg32(port->membase + STLR_UART_IM_OFFSET);
@@ -615,18 +662,11 @@ static int __sram tx_chars(struct stellaris_serial_port *pp)
 								 pp->dma_tx_buffer,
 								 xfer_size,
 								 DMA_XFER_MEMORY_TO_DEVICE | DMA_XFER_UNIT_BYTE);
-	dma_start_xfer(pp->dma_tx_channel);
-
+	
 	dev_vdbg(port->dev, "%s: dma_ch %x, xfer_size %u, dst %p\n",
 					 __func__, pp->dma_tx_channel, xfer_size, port->membase + STLR_UART_DR_OFFSET);
-
-#ifdef CONFIG_ARCH_TM4C
-	{
-		uint32_t regval2 = getreg32(port->membase + STLR_UART_DMACTL_OFFSET);
-		regval2 |= UART_DMACTL_TXDMAE;
-		putreg32(regval2, port->membase + STLR_UART_DMACTL_OFFSET);
-	}
-#endif
+	
+	start_dma_tx(pp);
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
     uart_write_wakeup(port);
@@ -683,23 +723,14 @@ static irqreturn_t __sram interrupt(int irq, void *data)
 #elif defined(CONFIG_ARCH_TM4C)
 	if (isr & UART_RIS_DMARX)
 	{
-		uint32_t regval2 = getreg32(port->membase + STLR_UART_DMACTL_OFFSET);
-		regval2 &= ~UART_DMACTL_RXDMAE;
-		putreg32(regval2, port->membase + STLR_UART_DMACTL_OFFSET);
-		putreg32(UART_ICR_DMARX, port->membase + STLR_UART_ICR_OFFSET);
-
 		dev_vdbg(port->dev, "%s RX\n", __func__);
 		rx_chars(pp);
 	}
 
 	if (isr & UART_RIS_DMATX)
 	{
-		uint32_t regval2 = getreg32(port->membase + STLR_UART_DMACTL_OFFSET);
-		regval2 &= ~UART_DMACTL_TXDMAE;
-		putreg32(regval2, port->membase + STLR_UART_DMACTL_OFFSET);
-		putreg32(UART_ICR_DMATX, port->membase + STLR_UART_ICR_OFFSET);
-
 		dev_vdbg(port->dev, "%s TX\n", __func__);
+		stop_dma_tx(pp);
 		tx_chars(pp);
 	}
 #endif
