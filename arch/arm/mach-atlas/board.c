@@ -23,6 +23,7 @@
 #include <mach/dma.h>
 #include <mach/sram.h>
 #include <mach/pins.h>
+#include <net/telit_he910.h>
 
 /***************************************************************************/
 
@@ -38,7 +39,7 @@ static struct resource board_spi_resources0[] = {
   },
 };
 
-static int board_spi_cs[] = {GPIO_SSI0_CS_SF, GPIO_SSI0_CS_EE, GPIO_SSI0_CS_ETH};
+static int board_spi_cs[] = {GPIO_SSI0_CS_SF, GPIO_SSI0_CS_EE, GPIO_SSI0_CS_ETH, GPIO_TL_SPI_MRDY};
 
 #ifdef CONFIG_STELLARIS_DMA
 char __sramdata ssi0_dma_rx_buffer[DMA_MAX_TRANSFER_SIZE];
@@ -86,9 +87,15 @@ static struct spi_eeprom eeprom_chip = {
   .flags    = EE_ADDR2,
 };
 
+static struct telit_platform_data telit_chip = {
+	.pwr_mon_gpio = GPIO_TL_PWRMON,
+	.pwr_on_gpio = GPIO_TL_PWR_ON,
+	.if_en_gpio = GPIO_TL_IF_EN,
+};
+
 static struct spi_board_info spi_devices[] = {
   {
-    .modalias      = "m25p80",
+    .modalias      = "m25p32",
     .max_speed_hz  = 5 * 1000000,
     .bus_num       = 0,
     .chip_select   = 0,
@@ -108,6 +115,13 @@ static struct spi_board_info spi_devices[] = {
     .chip_select   = 2,
     .irq           = STLR_GPIOF_IRQ, // ETH IRQ on PG5
   },
+	{
+		.modalias      = "telit_he910",
+		.max_speed_hz  = 5 * 1000000,
+		.bus_num       = 0,
+		.chip_select   = 3,
+		.platform_data = &telit_chip,
+	}
 };
 
 /***************************************************************************/

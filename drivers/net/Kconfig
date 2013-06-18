@@ -109,6 +109,15 @@ config EQUALIZER
 	  To compile this driver as a module, choose M here: the module
 	  will be called eql.  If unsure, say N.
 
+config TELIT_HE910
+	bool "Telit HE910 family"
+	depends on SPI
+	help
+	  The HE910 modules are small, lightweight, low power consumption 
+	  and RoHS compliant devices which combine the access to digital 
+	  communication services in GSM, GPRS, EDGE, UMTS and HSPA networks 
+	  with Land-Grid Array (LGA) form factor.
+
 config TUN
 	tristate "Universal TUN/TAP device driver support"
 	select CRC32
