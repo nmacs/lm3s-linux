@@ -227,6 +227,8 @@
 #define UART_CTL_LBE               (1 << 7)  /* Bit 7:  UART Loop Back Enable */
 #define UART_CTL_TXE               (1 << 8)  /* Bit 8:  UART Transmit Enable */
 #define UART_CTL_RXE               (1 << 9)  /* Bit 9:  UART Receive Enable */
+#define UART_CTL_DTR               (1 << 10) /* Bit 10: Data Terminal Ready */
+#define UART_CTL_RTS               (1 << 11) /* Bit 11: Request to Send */
 
 /* UART Interrupt FIFO Level Select (IFLS), offset 0x034 */
 
@@ -367,11 +369,26 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 
+#define STLR_UART_HAS_RTS 0x00000001
+#define STLR_UART_HAS_CTS 0x00000002
+#define STLR_UART_HAS_DTR 0x00000004
+#define STLR_UART_HAS_DCD 0x00000008
+#define STLR_UART_HAS_RI  0x00000010
+
+#define STLR_UART_INVERT_RTS 0x00000020
+#define STLR_UART_INVERT_DTR 0x00000040
+
 struct stellaris_platform_uart {
 	unsigned long mapbase;    /* Physical address base */
 	void __iomem *membase;    /* Virtual address if mapped */
 	unsigned int  irq;        /* Interrupt vector */
 	uint32_t      uart_index; /* Mask to enable/disable clock gate */
+	int rts_gpio;
+	int cts_gpio;
+	int dtr_gpio;
+	int dcd_gpio;
+	int ri_gpio;
+	int flags;
 #ifdef CONFIG_STELLARIS_DMA
 	uint32_t dma_rx_channel;
 	uint32_t dma_tx_channel;

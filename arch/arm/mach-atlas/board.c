@@ -139,6 +139,10 @@ static struct stellaris_platform_uart platform_uarts[] = {
 		.dma_rx_buffer = uart0_dma_rx_buffer,
 		.dma_buffer_size = UART0_DMA_BUFFER_SIZE,
 #endif
+		.dtr_gpio = GPIO_UART0_DTR,
+		.rts_gpio = GPIO_UART0_RTS,
+		.flags = STLR_UART_HAS_RTS | STLR_UART_HAS_CTS | STLR_UART_HAS_DTR |
+		         STLR_UART_INVERT_RTS | STLR_UART_INVERT_DTR,
   },
   {
     .mapbase    = STLR_UART1_BASE,

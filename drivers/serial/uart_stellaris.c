@@ -69,6 +69,10 @@ struct stellaris_serial_port {
 
 	struct work_struct rx_work;
 #endif
+	int dtr_gpio;
+	int rts_gpio;
+	
+	int flags;
 };
 
 static int __sram tx_chars(struct stellaris_serial_port *pp);
@@ -204,15 +208,59 @@ static unsigned int tx_empty(struct uart_port *port)
 
 static unsigned int get_mctrl(struct uart_port *port)
 {
+	dev_vdbg(port->dev, "%s\n", __func__);
   // TODO: Implement for UART1
   return TIOCM_CAR | TIOCM_CTS | TIOCM_DSR;
 }
 
 /****************************************************************************/
 
-static void set_mctrl(struct uart_port *port, unsigned int sigs)
+static void set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-  // TODO: Implement for UART1
+	struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
+//	uint32_t regval = 0;
+
+	dev_vdbg(port->dev, "%s: membase=%x\n", __func__, port->membase);
+
+//	regval = getreg32(port->membase + STLR_UART_CTL_OFFSET);
+
+	if (pp->flags & STLR_UART_HAS_RTS)
+	{
+		if (mctrl & TIOCM_RTS)
+		{
+			if (pp->rts_gpio)
+				gpiowrite(pp->rts_gpio, pp->flags & STLR_UART_INVERT_RTS ? 0 : 1);
+//			else
+//				regval |= UART_CTL_RTS;
+		}
+		else
+		{
+			if (pp->rts_gpio)
+				gpiowrite(pp->rts_gpio, pp->flags & STLR_UART_INVERT_RTS ? 1 : 0);
+//			else
+//				regval &= ~UART_CTL_RTS;
+		}
+	}
+
+	if (pp->flags & STLR_UART_HAS_DTR)
+	{
+		if (mctrl & TIOCM_DTR)
+		{
+			if (pp->dtr_gpio)
+				gpiowrite(pp->rts_gpio, pp->flags & STLR_UART_INVERT_DTR ? 0 : 1);
+//			else
+//				regval |= UART_CTL_DTR;
+		}
+		else
+		{
+			if (pp->dtr_gpio)
+				gpiowrite(pp->rts_gpio, pp->flags & STLR_UART_INVERT_DTR ? 1 : 0);
+//			else
+//				regval &= ~UART_CTL_DTR;
+		}
+	}
+	
+	//putreg32(regval, port->membase + STLR_UART_CTL_OFFSET);
 }
 
 /****************************************************************************/
@@ -224,8 +272,6 @@ static void start_tx(struct uart_port *port)
   struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 
   dev_dbg(port->dev, "%s\n", __func__);
-
-  spin_lock_irqsave(&port->lock, flags);
 
 	regval = getreg32(port->membase + STLR_UART_IM_OFFSET);
 
@@ -241,8 +287,6 @@ static void start_tx(struct uart_port *port)
 		putreg32(regval, port->membase + STLR_UART_IM_OFFSET);
 	}
 #endif
-
-  spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /****************************************************************************/
@@ -258,8 +302,6 @@ static void stop_tx(struct uart_port *port)
 
   dev_dbg(port->dev, "%s\n", __func__);
 
-  spin_lock_irqsave(&port->lock, flags);
-
 #ifdef CONFIG_STELLARIS_DMA
 	dma_stop_xfer(pp->dma_tx_channel);
 	pp->tx_busy = 0;
@@ -268,8 +310,6 @@ static void stop_tx(struct uart_port *port)
   regval &= ~UART_IM_TXIM;
   putreg32(regval, port->membase + STLR_UART_IM_OFFSET);
 #endif
-
-  spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /****************************************************************************/
@@ -285,8 +325,6 @@ static void stop_rx(struct uart_port *port)
 
   dev_dbg(port->dev, "%s\n", __func__);
 
-  spin_lock_irqsave(&port->lock, flags);
-
 #ifdef CONFIG_STELLARIS_DMA
 	stop_dma_rx(pp);
 #else
@@ -294,8 +332,6 @@ static void stop_rx(struct uart_port *port)
   regval &= ~(UART_IM_RXIM | UART_IM_RTIM);
   putreg32(regval, port->membase + STLR_UART_IM_OFFSET);
 #endif
-
-  spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /****************************************************************************/
@@ -763,16 +799,16 @@ static void config_port(struct uart_port *port, int flags)
 #ifdef CONFIG_STELLARIS_DMA
 	struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 #endif
-  port->type = PORT_STELLARIS;
-
 	dev_vdbg(port->dev, "%s\n", __func__);
 
-  if (request_irq(port->irq, interrupt, IRQF_DISABLED, "UART", port))
-    dev_err(port->dev, "Unable to attach UART %d "
-      "interrupt vector=%d\n", port->line, port->irq);
+	port->type = PORT_STELLARIS;
+
+	if (request_irq(port->irq, interrupt, IRQF_DISABLED, "UART", port))
+		dev_err(port->dev, "Unable to attach UART %d "
+			"interrupt vector=%d\n", port->line, port->irq);
 
 #ifdef CONFIG_STELLARIS_DMA
-	dev_vdbg(port->dev, "%s setup channel\n", __func__);
+	dev_vdbg(port->dev, "%s setup DMA channels\n", __func__);
 	dma_setup_channel(pp->dma_tx_channel, DMA_DEFAULT_CONFIG);
 	dma_setup_channel(pp->dma_rx_channel, DMA_DEFAULT_CONFIG);
 #endif
@@ -789,6 +825,7 @@ static const char *get_type(struct uart_port *port)
 
 static int request_port(struct uart_port *port)
 {
+	dev_vdbg(port->dev, "%s\n", __func__);
   return 0;
 }
 
@@ -796,12 +833,15 @@ static int request_port(struct uart_port *port)
 
 static void release_port(struct uart_port *port)
 {
+	dev_vdbg(port->dev, "%s\n", __func__);
 }
 
 /****************************************************************************/
 
 static int verify_port(struct uart_port *port, struct serial_struct *ser)
 {
+	dev_vdbg(port->dev, "%s\n", __func__);
+
   if ((ser->type != PORT_UNKNOWN) && (ser->type != PORT_STELLARIS))
     return -EINVAL;
   return 0;
@@ -957,6 +997,11 @@ static int __devinit probe(struct platform_device *pdev)
 
 		INIT_WORK(&pp->rx_work, do_rx_chars);
 #endif
+
+		pp->dtr_gpio = platp[i].dtr_gpio;
+		pp->rts_gpio = platp[i].rts_gpio;
+
+		pp->flags = platp[i].flags;
 
     port->dev = &pdev->dev;
     port->line = i;
