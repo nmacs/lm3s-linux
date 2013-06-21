@@ -24,10 +24,16 @@
 #include <linux/uaccess.h>
 #include <mach/hardware.h>
 
-#define CURRENT_WDT 0
+#define CURRENT_WDT 1
+
+#if CURRENT_WDT == 0
+# define WATCHDOG_CLOCK_RATE CLOCK_TICK_RATE
+#else
+# define WATCHDOG_CLOCK_RATE 16000000
+#endif
 
 #define WDT_DEFAULT_TIME	30	/* seconds */
-#define WDT_MAX_TIME		(0xFFFFFFFF / CLOCK_TICK_RATE)	/* seconds */
+#define WDT_MAX_TIME		(0xFFFFFFFF / WATCHDOG_CLOCK_RATE)	/* seconds */
 
 static int wdt_time = WDT_DEFAULT_TIME;
 
@@ -40,9 +46,24 @@ static spinlock_t stellaris_lock;
 
 /* ......................................................................... */
 
+static inline void putregwdt32(uint32_t value, uint32_t addr)
+{
+	putreg32(value, addr);
+#if CURRENT_WDT == 1
+	while( (getreg32(STLR_WATCHDOG_WDTCTL(CURRENT_WDT)) & WATCHDOG_WDTCTL_WRC_MASK) == 0 ) {}
+#endif
+}
+
+static inline uint32_t getregwdt32(uint32_t addr)
+{
+	return getreg32(addr);
+}
+
+/* ......................................................................... */
+
 static inline void _wdt_unlock(void)
 {
-	putreg32(WATCHDOG_WDTLOCK_MAGIC, STLR_WATCHDOG_WDTLOCK(CURRENT_WDT));
+	putregwdt32(WATCHDOG_WDTLOCK_MAGIC, STLR_WATCHDOG_WDTLOCK(CURRENT_WDT));
 }
 
 /*
@@ -51,7 +72,7 @@ static inline void _wdt_unlock(void)
 static inline void stellaris_wdt_reload(void)
 {
 	spin_lock(&stellaris_lock);
-	putreg32(1, STLR_WATCHDOG_WDTICR(CURRENT_WDT));
+	putregwdt32(1, STLR_WATCHDOG_WDTICR(CURRENT_WDT));
 	spin_unlock(&stellaris_lock);
 }
 
@@ -71,20 +92,20 @@ static inline void stellaris_wdt_stop(void)
 static inline void stellaris_wdt_start(void)
 {
 	uint32_t regval;
-	uint32_t tval = wdt_time * (CLOCK_TICK_RATE / 2);
+	uint32_t tval = wdt_time * (WATCHDOG_CLOCK_RATE / 2);
 
 	spin_lock(&stellaris_lock);
 	watchdog_clock_ctrl(CURRENT_WDT, SYS_ENABLE_CLOCK);
 	_wdt_unlock();
 
-	putreg32(tval, STLR_WATCHDOG_WDTLOAD(CURRENT_WDT));
+	putregwdt32(tval, STLR_WATCHDOG_WDTLOAD(CURRENT_WDT));
 	stellaris_wdt_reload();
 
-	regval = getreg32(STLR_WATCHDOG_WDTCTL(CURRENT_WDT));
+	regval = getregwdt32(STLR_WATCHDOG_WDTCTL(CURRENT_WDT));
 	regval |= WATCHDOG_WDTCTL_RESEN_MASK;
-	putreg32(regval, STLR_WATCHDOG_WDTCTL(CURRENT_WDT));
+	putregwdt32(regval, STLR_WATCHDOG_WDTCTL(CURRENT_WDT));
 	regval |= WATCHDOG_WDTCTL_INTEN_MASK;
-	putreg32(regval, STLR_WATCHDOG_WDTCTL(CURRENT_WDT));
+	putregwdt32(regval, STLR_WATCHDOG_WDTCTL(CURRENT_WDT));
 	spin_unlock(&stellaris_lock);
 }
 
