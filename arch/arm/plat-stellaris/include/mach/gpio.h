@@ -66,6 +66,7 @@
 #define STLR_GPIO_DEN_OFFSET          0x51C /* GPIO Digital Enable */
 #define STLR_GPIO_LOCK_OFFSET         0x520 /* GPIO Lock */
 #define STLR_GPIO_CR_OFFSET           0x524 /* GPIO Commit */
+#define STLR_GPIO_AMSEL_OFFSET        0x528 /* GPIO Analog Mode Select */
 #define STLR_GPIO_PCTL_OFFSET         0X52C /* GPIO Port Control */
 #define STLR_GPIO_PERIPHID4_OFFSET    0xfd0 /* GPIO Peripheral Identification 4 */
 #define STLR_GPIO_PERIPHID5_OFFSET    0xfd4 /* GPIO Peripheral Identification 5 */

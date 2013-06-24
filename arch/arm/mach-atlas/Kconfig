@@ -17,6 +17,9 @@ config UART_CLOCK_TICK_RATE
 	help
 	  Alternate UART clocking frequency. If 0 use CLOCK_TICK_RATE.
 
+config ATLAS_POWER
+	bool "Atlas power management driver"
+
 endmenu
 
 endif

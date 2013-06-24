@@ -15,7 +15,6 @@ menu "Texas Instruments Stellaris System-on-Chip"
 config DISABLE_TIME_ADJUST
 	bool "Disable time adjust"
 	default n
-	depends on MACH_UWIC
 
 config MPU
 	bool "Enable MPU"
@@ -44,6 +43,9 @@ config COPY_TO_SRAM_SIZE
 	int "SRAM region size"
 	default 1024
 	depends on COPY_TO_SRAM
+
+config STELLARIS_ADC
+	bool "ADC support"
 
 endmenu
 

@@ -142,6 +142,7 @@
 #include "scb.h"
 #include "watchdog.h"
 #include "dma.h"
+#include "adc.h"
 
 #ifdef CONFIG_MPU
 #  include "mpu.h"

@@ -179,3 +179,21 @@ void watchdog_clock_ctrl(int module, int ctrl)
 		while( (getreg32(STLR_SYSCON_PRWD) & mask) == 0 ) {}
 #endif
 }
+
+void adc_clock_ctrl(int module, int ctrl)
+{
+#ifdef CONFIG_ARCH_TM4C
+	uint32_t mask = 1 << module;
+	uint32_t regval;
+	
+	regval = getreg32(STLR_SYSCON_RCGCADC);
+	if (ctrl)
+		regval |= mask;
+	else
+		regval &= ~mask;
+	putreg32(regval, STLR_SYSCON_RCGCADC);
+	
+	if (ctrl)
+		while( (getreg32(STLR_SYSCON_PRADC) & mask) == 0 ) {}
+#endif
+}

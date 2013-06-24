@@ -201,6 +201,15 @@ static struct platform_device wdt_device = {
 
 /***************************************************************************/
 
+#ifdef CONFIG_STELLARIS_ADC
+struct platform_device adc_device = {
+	.name		  = "stellaris-adc",
+	.id		  = -1,
+};
+#endif
+
+/***************************************************************************/
+
 #ifdef CONFIG_ATLAS_CPU_LED
 static struct stellaris_led_platdata cpu_led_pdata = {
 	.name           = "cpu-led",
@@ -210,11 +219,18 @@ static struct stellaris_led_platdata cpu_led_pdata = {
 };
 
 static struct platform_device cpu_led = {
-	.name	= "stellaris-led",
-	.id		= 1,
-	.dev		= {
-		.platform_data  = &cpu_led_pdata,
-	},
+	.name               = "stellaris-led",
+	.id                 = 1,
+	.dev.platform_data  = &cpu_led_pdata,
+};
+#endif
+
+/***************************************************************************/
+
+#ifdef CONFIG_ATLAS_POWER
+static struct platform_device power_device = {
+	.name           = "atlas-power",
+	.id             = -1,
 };
 #endif
 
@@ -226,6 +242,12 @@ static struct platform_device *devices[] = {
 	&wdt_device,
 #ifdef CONFIG_ATLAS_CPU_LED
 	&cpu_led,
+#endif
+#ifdef CONFIG_STELLARIS_ADC
+	&adc_device,
+#endif
+#ifdef CONFIG_ATLAS_POWER
+	&power_device,
 #endif
 };
 

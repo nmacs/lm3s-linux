@@ -48,6 +48,7 @@ void ssi_clock_ctrl(int module, int ctrl);
 void epi_clock_ctrl(int ctrl);
 void watchdog_clock_ctrl(int module, int ctrl);
 void timer_clock_ctrl(int module, int ctrl);
+void adc_clock_ctrl(int module, int ctrl);
 
 #endif /* __ASSEMBLY__ */
 
@@ -531,6 +532,7 @@ void timer_clock_ctrl(int module, int ctrl);
 #define STLR_SYSCON_RCGCEPI_OFFSET    0x610 /* EPI Run Mode Clock Gating Control */
 #define STLR_SYSCON_RCGCUART_OFFSET   0x618 /* Universal Asynchronous Receiver/Transmitter Run Mode Clock Gating Control */
 #define STLR_SYSCON_RCGCSSI_OFFSET    0x61C /* Synchronous Serial Interface Run Mode Clock Gating Control */
+#define STLR_SYSCON_RCGCADC_OFFSET    0x638 /* Analog-to-Digital Converter Run Mode Clock Gating Control */
 
 /* Peripheral Ready Register Offsets */
 #define STLR_SYSCON_PRWD_OFFSET       0xA00 /* Watchdog Timer Peripheral Ready */
@@ -540,6 +542,7 @@ void timer_clock_ctrl(int module, int ctrl);
 #define STLR_SYSCON_PREPI_OFFSET      0xA10 /* EPI Peripheral Ready */
 #define STLR_SYSCON_PRUART_OFFSET     0xA18 /* Universal Asynchronous Receiver/Transmitter Peripheral Ready */
 #define STLR_SYSCON_PRSSI_OFFSET      0xA1C /* Synchronous Serial Interface Peripheral Ready */
+#define STLR_SYSCON_PRADC_OFFSET      0xA38 /* Analog-to-Digital Converter Peripheral Ready */
 
 /* System Control Register Addresses ************************************************/
 
@@ -572,6 +575,7 @@ void timer_clock_ctrl(int module, int ctrl);
 #define STLR_SYSCON_RCGCEPI           (STLR_SYSCON_BASE + STLR_SYSCON_RCGCEPI_OFFSET)
 #define STLR_SYSCON_RCGCUART          (STLR_SYSCON_BASE + STLR_SYSCON_RCGCUART_OFFSET)
 #define STLR_SYSCON_RCGCSSI           (STLR_SYSCON_BASE + STLR_SYSCON_RCGCSSI_OFFSET)
+#define STLR_SYSCON_RCGCADC           (STLR_SYSCON_BASE + STLR_SYSCON_RCGCADC_OFFSET)
 
 /* Peripheral Ready Registers */
 #define STLR_SYSCON_PRWD              (STLR_SYSCON_BASE + STLR_SYSCON_PRWD_OFFSET)
@@ -581,6 +585,7 @@ void timer_clock_ctrl(int module, int ctrl);
 #define STLR_SYSCON_PREPI             (STLR_SYSCON_BASE + STLR_SYSCON_PREPI_OFFSET)
 #define STLR_SYSCON_PRUART            (STLR_SYSCON_BASE + STLR_SYSCON_PRUART_OFFSET)
 #define STLR_SYSCON_PRSSI             (STLR_SYSCON_BASE + STLR_SYSCON_PRSSI_OFFSET)
+#define STLR_SYSCON_PRADC             (STLR_SYSCON_BASE + STLR_SYSCON_PRADC_OFFSET)
 
 /* System Control Register Bit Definitions ******************************************/
 

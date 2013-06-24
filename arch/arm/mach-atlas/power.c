@@ -1,3 +1,6 @@
+//#define DEBUG
+//#define VERBOSE_DEBUG 1
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -10,53 +13,91 @@
 #include <linux/sched.h>
 #include <linux/pm.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <mach/hardware.h>
 #include <mach/system.h>
+#include <mach/pins.h>
 
-#define DEBUG
+#define ATLAS_CAPS_VOLTAGE_CHANNEL   14
+#define ATLAS_VUNREG_VOLTAGE_CHANNEL 15
 
-static int pwr_hold_pin;
-static int pwr_switch_pin;
-static struct work_struct pwr_switch_irq_work;
-static int pwr_switch_irq;
-static int power_off_delay;
+#define CAPS_MAX_VOLTAGE_mV 2500
+#define CAPS_MIN_VOLTAGE_mV 2400
+#define CAPS_MAX_TEMPERATURE_mC 50000
+#define VUNREG_MIN_LEVEL_mV 9000
 
-extern void lm3s_gpioclearint(uint32_t pinset);
+struct power_sensors {
+	int caps_voltage;
+	int vunreg_voltage;
+	int mcu_temperature;
+};
 
-static void set_power_hold_pin(int value)
+struct power_device {
+	struct device *dev;
+	struct delayed_work work;
+	struct power_sensors sensors;
+	int charging;
+};
+
+static struct power_device device;
+
+static int charge_profile(struct power_sensors *sensors, int charging)
 {
-#ifdef DEBUG
-	printk("Set power hold pin: %i\n", value);
-#endif
+	if( sensors->mcu_temperature >= CAPS_MAX_TEMPERATURE_mC ||
+	    sensors->vunreg_voltage < VUNREG_MIN_LEVEL_mV )
+		return 0;
 
-	lm3s_gpiowrite(pwr_hold_pin, value);
+	if (sensors->caps_voltage < CAPS_MIN_VOLTAGE_mV)
+		return 1;
+	else if (sensors->caps_voltage > CAPS_MAX_VOLTAGE_mV)
+		return 0;
+	else
+		return charging;
 }
 
-static void lm3s_power_off(void)
+static int refresh_sensors(struct power_sensors *sensors)
 {
-	set_power_hold_pin(0);
-	mdelay(10);
-	arch_reset(0, 0);
+	int res;
+	int channels[] = {ATLAS_CAPS_VOLTAGE_CHANNEL, ATLAS_VUNREG_VOLTAGE_CHANNEL, STLR_ADC_TEMPERATURE};
+	uint32_t values[ARRAY_SIZE(channels)];
+
+	res = adc_convert_ex(values, channels, ARRAY_SIZE(channels));
+	if( res != ARRAY_SIZE(channels) )
+		return -EIO;
+	
+	sensors->caps_voltage = adc_to_mV(values[0]);
+	sensors->vunreg_voltage = adc_to_mV(values[1]) * 10;
+	sensors->mcu_temperature = adc_to_mC(values[2]);
+	
+	dev_vdbg(device.dev, "%s: caps_voltage = %i mV, vunreg_voltage = %i mV mcu_temperature = %i mC\n", __func__,
+	         sensors->caps_voltage, sensors->vunreg_voltage, sensors->mcu_temperature);
+	
+	return 0;
 }
 
-static irqreturn_t power_switch_irq(int irq, void *pw)
+static void power_check_work(struct work_struct *work)
 {
-	if( irq != pwr_switch_irq )
-		return IRQ_NONE;
-
-#ifdef DEBUG
-	printk("Handle Power Switch interrupt\n");
-#endif
-
-	lm3s_gpioclearint(pwr_switch_pin);
-	disable_irq_nosync(irq);
-	schedule_work(&pwr_switch_irq_work);
-
-	return IRQ_HANDLED;
+	if (refresh_sensors(&device.sensors))
+		dev_err(device.dev, "Fail to refresh power sensors.\n");
+	else
+	{
+		int should_charge = charge_profile(&device.sensors, device.charging);
+		if (should_charge && !device.charging) {
+			//gpiowrite(GPIO_CAP_CHRG, 1);
+			device.charging = 1;
+			dev_dbg(device.dev, "Enable charging\n");
+		}
+		else if (!should_charge && device.charging) {
+			//gpiowrite(GPIO_CAP_CHRG, 0);
+			device.charging = 0;
+			dev_dbg(device.dev, "Disable charging\n");
+		}
+	}
+	
+	schedule_delayed_work(&device.work, msecs_to_jiffies(5000));
 }
 
-static void switch_irq_work(struct work_struct *work)
-{
+#if 0
 #ifdef DEBUG
 	printk("Send SIGPWR to init\n");
 #endif
@@ -78,38 +119,49 @@ static void switch_irq_work(struct work_struct *work)
 	kernel_power_off();
 
 	enable_irq(pwr_switch_irq);
-}
-
-void __init lm3s_power_init(int switch_pin, int switch_irq, int hold_pin, int switch_off_delay)
-{
-#ifdef DEBUG
-	printk("LM3S power module init\n");
 #endif
 
-	pwr_hold_pin = hold_pin;
-	pm_power_off = lm3s_power_off;
+static int power_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
 
-	set_power_hold_pin(1);
+	device.dev = dev;
+	INIT_DELAYED_WORK(&device.work, power_check_work);
+
+	platform_set_drvdata(pdev, &device);
+
+	dev_dbg(dev, "%s probed\n", __func__);
+	
+	schedule_delayed_work(&device.work, msecs_to_jiffies(5000));
+
+	return 0;
 }
 
-void __init lm3s_power_switch_init(int switch_pin, int switch_irq, int switch_off_delay)
+static int __devexit power_remove(struct platform_device *pdev)
+{
+	cancel_delayed_work_sync(&device.work);
+	return 0;
+}
+
+
+static struct platform_driver power_driver = {
+	.driver		= {
+		.name	= "atlas-power",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= power_probe,
+	.remove		= __devexit_p(power_remove),
+};
+
+static int __init power_init(void)
 {
 	int ret;
 
-#ifdef DEBUG
-	printk("LM3S power switch init\n");
-#endif
+	ret = platform_driver_register(&power_driver);
+	if (ret)
+		printk(KERN_ERR "%s: failed to add power driver\n", __func__);
 
-	pwr_switch_pin = switch_pin;
-	pwr_switch_irq = switch_irq;
-	power_off_delay = switch_off_delay;
-
-	INIT_WORK(&pwr_switch_irq_work, switch_irq_work);
-
-	ret = request_irq(pwr_switch_irq, power_switch_irq, IRQF_TRIGGER_LOW, "power-switch", NULL);
-	if (ret < 0) {
-		printk("failed to get irq %i\n", pwr_switch_irq);
-	}
-
-	lm3s_gpioirqenable(pwr_switch_pin);
+	return ret;
 }
+
+arch_initcall(power_init);
