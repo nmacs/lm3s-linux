@@ -42,6 +42,9 @@
 #define TIMER_GPTMICR_OFFSET      0x024
 #define TIMER_GPTMTAILR_OFFSET    0x028
 #define TIMER_GPTMTAR_OFFSET      0x048
+#define TIMER_GPTMTAV_OFFSET      0x050
+#define TIMER_GPTMPP_OFFSET       0xFC0
+#define TIMER_GPTMCC_OFFSET       0xFC8
 
 
 /* Timer register addresses *********************************************************/
@@ -55,7 +58,10 @@
 #define STLR_TIMER_GPTMRIS(n)     (STLR_TIMER_BASE(n) + TIMER_GPTMRIS_OFFSET)
 #define STLR_TIMER_GPTMICR(n)     (STLR_TIMER_BASE(n) + TIMER_GPTMICR_OFFSET)
 #define STLR_TIMER_GPTMTAILR(n)   (STLR_TIMER_BASE(n) + TIMER_GPTMTAILR_OFFSET)
+#define STLR_TIMER_GPTMTAV(n)     (STLR_TIMER_BASE(n) + TIMER_GPTMTAV_OFFSET)
 #define STLR_TIMER_GPTMTAR(n)     (STLR_TIMER_BASE(n) + TIMER_GPTMTAR_OFFSET)
+#define STLR_TIMER_GPTMPP(n)      (STLR_TIMER_BASE(n) + TIMER_GPTMPP_OFFSET)
+#define STLR_TIMER_GPTMCC(n)      (STLR_TIMER_BASE(n) + TIMER_GPTMCC_OFFSET)
 
 /* Timer register bit defitiions ****************************************************/
 

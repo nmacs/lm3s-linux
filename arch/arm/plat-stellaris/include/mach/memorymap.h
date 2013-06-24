@@ -122,6 +122,7 @@
 #  define STLR_CM3P_BASE      0xE000E000 /*            : Cortex-M3 Peripherals */
 #  define STLR_NVIC_BASE      0xe000e000 /* -0xe000efff: Nested Vectored Interrupt Controller */
                                          /* -0xe003ffff: Reserved */
+#  define STLR_SYSTICK_BASE   0xE000E000
 #  define STLR_TPIU_BASE      0xe0040000 /* -0xe0040fff: Trace Port Interface Unit */
                                          /* -0xffffffff: Reserved */
 #else

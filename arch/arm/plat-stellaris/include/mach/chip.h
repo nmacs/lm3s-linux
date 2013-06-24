@@ -143,6 +143,7 @@
 #include "watchdog.h"
 #include "dma.h"
 #include "adc.h"
+#include "systick.h"
 
 #ifdef CONFIG_MPU
 #  include "mpu.h"

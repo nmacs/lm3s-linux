@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-lm3s/include/mach/lm3s_clock.h
+ * arch/arm/plat-stellaris/include/mach/clock.h
  *
  * Copyright (C) 2012 Max Nekludov <macscomp@gmail.com>.
  *
@@ -19,9 +19,13 @@
 
 #ifndef __MACH_PLAT_STELLARIS_CLOCK_H
 
-#include <linux/types.h>
-#include <linux/init.h>
-
-void __init stellaris_timer_init(void);
+struct clk {
+	const char           *name;
+	int                   id;
+	unsigned long         rate;
+	struct clk           *parent;
+	int                   (*set_rate)(struct clk *c, unsigned long rate);
+	long                  (*round_rate)(struct clk *clk, unsigned long rate);
+};
 
 #endif /* __MACH_PLAT_STELLARIS_CLOCK_H */

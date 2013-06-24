@@ -23,6 +23,7 @@
 #include <mach/dma.h>
 #include <mach/sram.h>
 #include <mach/pins.h>
+#include <mach/cpu.h>
 #include <net/telit_he910.h>
 
 /***************************************************************************/
@@ -259,28 +260,19 @@ extern unsigned int __sram_start[], __sram_end[], __sram_load_address[];
 
 /***************************************************************************/
 
+extern void tm4c_clock_init(void);
+
 static void __init board_init(void)
 {
-	//uint32_t regval;
-
+	tm4c_clock_init();
 #ifdef CONFIG_COPY_TO_SRAM
 	memcpy(__sram_start, __sram_load_address,
 	       (unsigned long)__sram_end - (unsigned long)__sram_start);
 #endif
-
-	//regval = SYSCON_DSLPCLKCFG_DSDIVORIDE(0) | SYSCON_DSLPCLKCFG_DSOSCSRC_30KHZ;
-	//putreg32(regval, LM3S_SYSCON_DSLPCLKCFG);
-
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	spi_register_board_info(spi_devices, ARRAY_SIZE(spi_devices));
 
 	gpioirqenable(GPIO_ETH_INTRN);
-
-	//lm3s_power_init(GPIO_POWER_HOLD);
-
-#ifdef CONFIG_MACH_UWIC_ENABLE_PWRSWITCH
-	//lm3s_power_switch_init(GPIO_POWER_FAIL, LM3S1D21_GPIOB_IRQ, CONFIG_MACH_UWIC_POWER_OFF_DELAY);
-#endif
 }
 
 /***************************************************************************/
@@ -289,12 +281,6 @@ static void __init board_init_irq(void)
 {
   nvic_init();
 }
-
-/***************************************************************************/
-
-static struct sys_timer timer = {
-  .init   = stellaris_timer_init,
-};
 
 /***************************************************************************/
 
@@ -311,6 +297,6 @@ MACHINE_START(ATLAS, "atlas")
   .boot_params  = PHYS_OFFSET + 0x100,
   .map_io   = board_map_io,
   .init_irq = board_init_irq,
-  .timer    = &timer,
+  .timer    = &stellaris_timer,
   .init_machine = board_init,
 MACHINE_END
