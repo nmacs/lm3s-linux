@@ -43,9 +43,16 @@ static inline void interface_control(struct telit_modem *priv, int ctrl)
 static int read_proc(char *buf, char **start, off_t offset, int count, int *eof, void *data)
 {
 	struct telit_modem *priv = data;
-	int len = 0;
-	int power = get_power_status(priv);
-	len = snprintf(buf, count, "%s", power ? "on" : "off");
+	int len;
+	int power;
+	
+	if (offset)
+		return 0;
+	
+	power = get_power_status(priv);
+	len = sprintf(buf, "%s", power ? "on" : "off");
+	*eof = 1;
+	
 	return len;
 }
 
@@ -89,15 +96,15 @@ static int __devinit init_procfs(struct telit_modem *priv)
 static void telit_power_on(struct work_struct *work)
 {
 	struct telit_modem *priv = container_of(work, struct telit_modem, work_power_on);
-	
+
 	dev_dbg(&priv->spidev->dev, "Switching modem on...\n");
-	
+
 	gpiowrite(priv->pwr_on_gpio, 0);
 	dev_dbg(&priv->spidev->dev, "Hold PWR_ON\n");
 	msleep(5000);
 	gpiowrite(priv->pwr_on_gpio, 1);
 	dev_dbg(&priv->spidev->dev, "Release PWR_ON\n");
-	
+
 	msleep(200);
 	interface_control(priv, 1);
 	dev_dbg(&priv->spidev->dev, "Power: %s\n", get_power_status(priv) ? "ON" : "OFF");
@@ -106,17 +113,17 @@ static void telit_power_on(struct work_struct *work)
 static void telit_power_off(struct work_struct *work)
 {
 	struct telit_modem *priv = container_of(work, struct telit_modem, work_power_off);
-	
+
 	dev_dbg(&priv->spidev->dev, "Switching modem off...\n");
-	
+
 	interface_control(priv, 0);
-	
+
 	gpiowrite(priv->pwr_on_gpio, 0);
 	dev_dbg(&priv->spidev->dev, "Hold PWR_ON\n");
 	msleep(3000);
 	gpiowrite(priv->pwr_on_gpio, 1);
 	dev_dbg(&priv->spidev->dev, "Release PWR_ON\n");
-	
+
 	msleep(3000);
 	interface_control(priv, 1);
 	dev_dbg(&priv->spidev->dev, "Power: %s\n", get_power_status(priv) ? "ON" : "OFF");
@@ -131,7 +138,7 @@ static int __devinit telit_probe(struct spi_device *spi)
 
 	spi->bits_per_word = 8;
 
-	priv = kmalloc(sizeof(struct telit_modem), GFP_KERNEL);
+	priv = kzalloc(sizeof(struct telit_modem), GFP_KERNEL);
 	if (priv == 0)
 		return -ENOMEM;
 
