@@ -399,14 +399,13 @@ static void shutdown(struct uart_port *port)
 	struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 
   dev_dbg(port->dev, "%s\n", __func__);
-
-  spin_lock_irqsave(&port->lock, flags);
-
+	
+	/* Disable all interrupts now */
+	putreg32(0, port->membase + STLR_UART_IM_OFFSET);
+	cancel_work_sync(&pp->rx_work);
 	stop_dma_rx(pp);
 	stop_dma_tx(pp);
   disable_uart(port);
-
-  spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /****************************************************************************/
