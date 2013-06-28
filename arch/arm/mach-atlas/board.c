@@ -129,9 +129,9 @@ static struct spi_board_info spi_devices[] = {
 /***************************************************************************/
 
 #ifdef CONFIG_STELLARIS_DMA
-#define UART0_DMA_BUFFER_SIZE 128
-#define UART1_DMA_BUFFER_SIZE 512
-#define UART2_DMA_BUFFER_SIZE 1024
+#define UART0_DMA_BUFFER_SIZE 256
+#define UART1_DMA_BUFFER_SIZE 256
+#define UART2_DMA_BUFFER_SIZE 256
 
 char __sramdata uart0_dma_tx_buffer[UART0_DMA_BUFFER_SIZE];
 char __sramdata uart0_dma_rx_buffer[UART0_DMA_BUFFER_SIZE];
