@@ -92,6 +92,7 @@ static struct telit_platform_data telit_chip = {
 	.pwr_mon_gpio = GPIO_TL_PWRMON,
 	.pwr_on_gpio = GPIO_TL_PWR_ON,
 	.if_en_gpio = GPIO_TL_IF_EN,
+	.spi_srdy_gpio = GPIO_TL_SPI_SRDY,
 };
 
 static struct spi_board_info spi_devices[] = {
