@@ -118,6 +118,10 @@ config TELIT_HE910
 	  communication services in GSM, GPRS, EDGE, UMTS and HSPA networks 
 	  with Land-Grid Array (LGA) form factor.
 
+config TELIT_HE910_POWER_ON
+	bool "Power ON Telit modem on startup"
+	depends on TELIT_HE910
+
 config TUN
 	tristate "Universal TUN/TAP device driver support"
 	select CRC32
