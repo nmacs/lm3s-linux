@@ -67,7 +67,8 @@ struct stellaris_serial_port {
 
 	int   cur_bytes_received;
 
-	struct work_struct rx_work;
+	struct tasklet_struct rx_tasklet;
+	struct timer_list rx_timer;
 #endif
 	int dtr_gpio;
 	int rts_gpio;
@@ -75,72 +76,15 @@ struct stellaris_serial_port {
 	int flags;
 };
 
+/****************************************************************************/
+
 static int __sram tx_chars(struct stellaris_serial_port *pp);
 static void __sram start_rx_dma(struct stellaris_serial_port *pp);
+static void stop_rx(struct uart_port *port);
 
 /****************************************************************************/
-
-static void enable_uart(struct uart_port *port)
-{
-  uint32_t regval;
-  struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
-
-	dev_vdbg(port->dev, "%s\n", __func__);
-
-	uart_clock_ctrl(pp->uart_index, SYS_ENABLE_CLOCK);
-	
-#ifdef CONFIG_UART_CLOCK_TICK_RATE
-	/* Select alternative clock source */
-	putreg32(UART_UARTCC_CS_ALT, port->membase + STLR_UART_UARTCC_OFFSET);
-#endif
-
-  /* Clear mask, so no surprise interrupts. */
-  putreg32(0, port->membase + STLR_UART_IM_OFFSET);
-
-  regval = getreg32(port->membase + STLR_UART_LCRH_OFFSET);
-  regval |= UART_LCRH_FEN;
-  putreg32(regval, port->membase + STLR_UART_LCRH_OFFSET);
-
-	regval = getreg32(port->membase + STLR_UART_IFLS_OFFSET);
-	regval = (regval & ~UART_IFLS_RXIFLSEL_MASK) | UART_IFLS_RXIFLSEL_18th;
-	putreg32(regval, port->membase + STLR_UART_IFLS_OFFSET);
-
-  regval = getreg32(port->membase + STLR_UART_CTL_OFFSET);
-  regval |= UART_CTL_UARTEN;
-  putreg32(regval, port->membase + STLR_UART_CTL_OFFSET);
 
 #ifdef CONFIG_STELLARIS_DMA
-	dev_vdbg(port->dev, "%s enable port dma\n", __func__);
-#if defined(CONFIG_ARCH_TM4C)
-	putreg32(UART_IM_DMARX | UART_IM_DMATX,
-	              port->membase + STLR_UART_IM_OFFSET);
-#elif defined(CONFIG_ARCH_LM3S)
-	putreg32(UART_DMACTL_TXDMAE | UART_DMACTL_RXDMAE,
-	              port->membase + STLR_UART_DMACTL_OFFSET);
-#endif
-	pp->tx_busy = 0;
-	pp->rx_busy = 0;
-#endif
-}
-
-/****************************************************************************/
-
-static void disable_uart(struct uart_port *port)
-{
-  uint32_t regval;
-  struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
-
-	dev_vdbg(port->dev, "%s\n", __func__);
-
-  /* Disable all interrupts now */
-  putreg32(0, port->membase + STLR_UART_IM_OFFSET);
-
-  regval = getreg32(port->membase + STLR_UART_CTL_OFFSET);
-  regval &= ~UART_CTL_UARTEN;
-  putreg32(regval, port->membase + STLR_UART_CTL_OFFSET);
-
-  uart_clock_ctrl(pp->uart_index, SYS_DISABLE_CLOCK);
-}
 
 static void start_dma_rx(struct stellaris_serial_port *pp)
 {
@@ -195,6 +139,75 @@ static void stop_dma_tx(struct stellaris_serial_port *pp)
 	}
 #endif
 }
+#endif
+
+static void enable_uart(struct uart_port *port)
+{
+  uint32_t regval;
+  struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
+
+	dev_vdbg(port->dev, "%s\n", __func__);
+
+	uart_clock_ctrl(pp->uart_index, SYS_ENABLE_CLOCK);
+	
+#ifdef CONFIG_UART_CLOCK_TICK_RATE
+	/* Select alternative clock source */
+	putreg32(UART_UARTCC_CS_ALT, port->membase + STLR_UART_UARTCC_OFFSET);
+#endif
+
+  /* Clear mask, so no surprise interrupts. */
+  putreg32(0, port->membase + STLR_UART_IM_OFFSET);
+
+  regval = getreg32(port->membase + STLR_UART_LCRH_OFFSET);
+  regval |= UART_LCRH_FEN;
+  putreg32(regval, port->membase + STLR_UART_LCRH_OFFSET);
+
+	regval = getreg32(port->membase + STLR_UART_IFLS_OFFSET);
+	regval = (regval & ~UART_IFLS_RXIFLSEL_MASK) | UART_IFLS_RXIFLSEL_18th;
+	putreg32(regval, port->membase + STLR_UART_IFLS_OFFSET);
+
+  regval = getreg32(port->membase + STLR_UART_CTL_OFFSET);
+  regval |= UART_CTL_UARTEN;
+  putreg32(regval, port->membase + STLR_UART_CTL_OFFSET);
+
+#ifdef CONFIG_STELLARIS_DMA
+	dev_vdbg(port->dev, "%s enable port dma\n", __func__);
+#if defined(CONFIG_ARCH_TM4C)
+	putreg32(UART_IM_DMARX | UART_IM_DMATX,
+	              port->membase + STLR_UART_IM_OFFSET);
+#elif defined(CONFIG_ARCH_LM3S)
+	putreg32(UART_DMACTL_TXDMAE | UART_DMACTL_RXDMAE,
+	              port->membase + STLR_UART_DMACTL_OFFSET);
+#endif
+	pp->tx_busy = 0;
+	pp->rx_busy = 0;
+	tasklet_enable(&pp->rx_tasklet);
+#endif
+}
+
+static void disable_uart(struct uart_port *port)
+{
+  uint32_t regval;
+  struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
+
+	dev_vdbg(port->dev, "%s\n", __func__);
+
+  /* Disable all interrupts now */
+	putreg32(0, port->membase + STLR_UART_IM_OFFSET);
+
+#ifdef CONFIG_STELLARIS_DMA
+	tasklet_disable(&pp->rx_tasklet);
+	tasklet_kill(&pp->rx_tasklet);
+	del_timer_sync(&pp->rx_timer);
+	stop_dma_tx(pp);
+#endif
+
+  regval = getreg32(port->membase + STLR_UART_CTL_OFFSET);
+  regval &= ~UART_CTL_UARTEN;
+  putreg32(regval, port->membase + STLR_UART_CTL_OFFSET);
+
+  uart_clock_ctrl(pp->uart_index, SYS_DISABLE_CLOCK);
+}
 
 /****************************************************************************/
 
@@ -220,7 +233,7 @@ static void set_mctrl(struct uart_port *port, unsigned int mctrl)
 	struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 //	uint32_t regval = 0;
 
-	dev_vdbg(port->dev, "%s: membase=%x\n", __func__, port->membase);
+	dev_vdbg(port->dev, "%s [mmio:%p]\n", __func__, port->membase);
 
 //	regval = getreg32(port->membase + STLR_UART_CTL_OFFSET);
 
@@ -267,7 +280,6 @@ static void set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 static void start_tx(struct uart_port *port)
 {
-  unsigned long flags;
   uint32_t regval;
   struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 
@@ -293,7 +305,6 @@ static void start_tx(struct uart_port *port)
 
 static void stop_tx(struct uart_port *port)
 {
-  unsigned long flags;
 #ifdef CONFIG_STELLARIS_DMA
 	struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 #else
@@ -303,7 +314,7 @@ static void stop_tx(struct uart_port *port)
   dev_dbg(port->dev, "%s\n", __func__);
 
 #ifdef CONFIG_STELLARIS_DMA
-	dma_stop_xfer(pp->dma_tx_channel);
+	stop_dma_tx(pp);
 	pp->tx_busy = 0;
 #else
   regval = getreg32(port->membase + STLR_UART_IM_OFFSET);
@@ -316,7 +327,6 @@ static void stop_tx(struct uart_port *port)
 
 static void stop_rx(struct uart_port *port)
 {
-  unsigned long flags;
 #ifdef CONFIG_STELLARIS_DMA
 	struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
 #else
@@ -326,6 +336,8 @@ static void stop_rx(struct uart_port *port)
   dev_dbg(port->dev, "%s\n", __func__);
 
 #ifdef CONFIG_STELLARIS_DMA
+	tasklet_kill(&pp->rx_tasklet);
+	del_timer_sync(&pp->rx_timer);
 	stop_dma_rx(pp);
 #else
   regval = getreg32(port->membase + STLR_UART_IM_OFFSET);
@@ -395,17 +407,8 @@ static int startup(struct uart_port *port)
 
 static void shutdown(struct uart_port *port)
 {
-  unsigned long flags;
-	struct stellaris_serial_port *pp = container_of(port, struct stellaris_serial_port, port);
-
-  dev_dbg(port->dev, "%s\n", __func__);
-	
-	/* Disable all interrupts now */
-	putreg32(0, port->membase + STLR_UART_IM_OFFSET);
-	cancel_work_sync(&pp->rx_work);
-	stop_dma_rx(pp);
-	stop_dma_tx(pp);
-  disable_uart(port);
+	dev_dbg(port->dev, "%s\n", __func__);
+	disable_uart(port);
 }
 
 /****************************************************************************/
@@ -552,33 +555,43 @@ static void __sram start_rx_dma(struct stellaris_serial_port *pp)
 	start_dma_rx(pp);
 }
 
-static void __sram rx_chars(struct stellaris_serial_port *pp);
+static void __sram rx_chars(struct stellaris_serial_port *pp, int timeout);
 
-static void __sram do_rx_chars(struct work_struct *work)
+static void __sram rx_chars_timeout(unsigned long data)
 {
-	struct stellaris_serial_port *pp = container_of(work, struct stellaris_serial_port, rx_work);
+	struct stellaris_serial_port *pp = (struct stellaris_serial_port*)data;
+	struct uart_port *port = &pp->port;
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+	rx_chars(pp, 1 /*timeout*/);
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+
+static void __sram do_rx_chars(unsigned long data)
+{
+	struct stellaris_serial_port *pp = (struct stellaris_serial_port*)data;
 	struct uart_port *port = &pp->port;
 	struct tty_struct *tty = port->state->port.tty;
 	unsigned char* slot = pp->rx_slot_b;
 	int bytes_received = pp->cur_bytes_received;
-	int old_low_latency = tty->low_latency;
 	unsigned long flags;
+
+	dev_vdbg(port->dev, "%s bytes_received %i\n", __func__, bytes_received);
 
 	tty_insert_flip_string(tty, slot, bytes_received);
 	port->icount.rx += bytes_received;
 
-	tty->low_latency = 1;
-	tty_flip_buffer_push(tty);
-	tty->low_latency = old_low_latency;
+	tty_schedule_flip(tty);
 
 	spin_lock_irqsave(&port->lock, flags);
 	pp->rx_busy = 0;
-	rx_chars(pp);
+	rx_chars(pp, 0);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 #endif
 
-static void __sram rx_chars(struct stellaris_serial_port *pp)
+static void __sram rx_chars(struct stellaris_serial_port *pp, int timeout)
 {
 	struct uart_port *port = &pp->port;
 #ifdef CONFIG_STELLARIS_DMA
@@ -592,10 +605,29 @@ static void __sram rx_chars(struct stellaris_serial_port *pp)
   dev_vdbg(port->dev, "%s\n", __func__);
 
 #ifdef CONFIG_STELLARIS_DMA
-	if( pp->rx_busy )
-		return;
+	if (get_units_left(pp->dma_rx_channel, 1) != 0) {
+		if (!timeout) {
+			mod_timer(&pp->rx_timer, jiffies + 1);
+			return;
+		}
+	}
 
-	dma_stop_xfer(pp->dma_rx_channel);
+	if (!timeout)
+		del_timer(&pp->rx_timer);
+
+	if( pp->rx_busy )
+	{
+		if (get_units_left(pp->dma_rx_channel, 1) == 0)
+		{
+			stop_dma_rx(pp);
+			port->icount.overrun++;
+			dev_notice(port->dev, "%s: overrun detected [mmio:%p]\n", __func__, port->membase);
+		}
+		dev_vdbg(port->dev, "%s rx_busy\n", __func__);
+		return;
+	}
+
+	stop_dma_rx(pp);
 
 	swap(pp->rx_slot_a, pp->rx_slot_b);
 
@@ -604,12 +636,14 @@ static void __sram rx_chars(struct stellaris_serial_port *pp)
 	bytes_received -= get_units_left(pp->dma_rx_channel, 1);
 
 	start_rx_dma(pp);
+	
+	dev_vdbg(port->dev, "%s bytes_received %i\n", __func__, bytes_received);
 
 	if( bytes_received > 0 )
 	{
 		pp->cur_bytes_received = bytes_received;
 		pp->rx_busy = 1;
-		schedule_work(&pp->rx_work);
+		tasklet_schedule(&pp->rx_tasklet);
 	}
 #else
   while( ((getreg32(port->membase + STLR_UART_FR_OFFSET)) & UART_FR_RXFE) == 0 )
@@ -752,7 +786,7 @@ static irqreturn_t __sram interrupt(int irq, void *data)
 	if (dma_ack_interrupt(pp->dma_rx_channel))
 	{
 		dev_vdbg(port->dev, "%s RX\n", __func__);
-		rx_chars(pp);
+		rx_chars(pp, 0);
 	}
 
 	if (dma_ack_interrupt(pp->dma_tx_channel))
@@ -764,7 +798,7 @@ static irqreturn_t __sram interrupt(int irq, void *data)
 	if (isr & UART_RIS_DMARX)
 	{
 		dev_vdbg(port->dev, "%s RX\n", __func__);
-		rx_chars(pp);
+		rx_chars(pp, 0);
 	}
 
 	if (isr & UART_RIS_DMATX)
@@ -778,7 +812,7 @@ static irqreturn_t __sram interrupt(int irq, void *data)
   if (isr & (UART_MIS_RXMIS | UART_MIS_RTMIS))
 	{
 		dev_vdbg(port->dev, "%s RX\n", __func__);
-    rx_chars(pp);
+    rx_chars(pp, 0);
 	}
 
   if (isr & UART_MIS_TXMIS)
@@ -787,6 +821,8 @@ static irqreturn_t __sram interrupt(int irq, void *data)
     tx_chars(pp);
 	}
 #endif
+
+	dev_vdbg(port->dev, "%s ISR done\n", __func__);
 
   return IRQ_HANDLED;
 }
@@ -994,7 +1030,11 @@ static int __devinit probe(struct platform_device *pdev)
 
 		pp->cur_bytes_received = 0;
 
-		INIT_WORK(&pp->rx_work, do_rx_chars);
+		tasklet_init(&pp->rx_tasklet, do_rx_chars, (unsigned long)pp);
+		tasklet_disable(&pp->rx_tasklet);
+		init_timer(&pp->rx_timer);
+		pp->rx_timer.function = rx_chars_timeout;
+		pp->rx_timer.data = (unsigned long)pp;
 #endif
 
 		pp->dtr_gpio = platp[i].dtr_gpio;
