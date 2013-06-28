@@ -217,7 +217,7 @@ static struct stellaris_led_platdata cpu_led_pdata = {
 	.name           = "cpu-led",
 	.gpio           = GPIO_CPU_LED,
 	.flags          = 0,
-	.def_trigger    = "none",
+	.def_trigger    = "cpuidle",
 };
 
 static struct platform_device cpu_led = {
