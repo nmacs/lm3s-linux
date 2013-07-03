@@ -38,8 +38,15 @@
 
 #define STLR_GPIOA_IRQ    0
 #define STLR_GPIOB_IRQ    1
+#define STLR_GPIOC_IRQ    2
+#define STLR_GPIOD_IRQ    3
+#define STLR_GPIOE_IRQ    4
 #define STLR_GPIOF_IRQ    30
 #define STLR_GPIOG_IRQ    31
+#define STLR_GPIOH_IRQ    32
+#define STLR_GPIOK_IRQ    52
+#define STLR_GPIOL_IRQ    53
+#define STLR_GPIOM_IRQ    72
 
 #if defined(CONFIG_ARCH_LM3S)
 # define NR_IRQS			37

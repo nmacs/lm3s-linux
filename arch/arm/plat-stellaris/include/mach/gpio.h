@@ -427,6 +427,8 @@ void gpiowrite(uint32_t pinset, int value);
 int gpioread(uint32_t pinset, int value);
 
 void gpioirqenable(uint32_t pinset);
+void gpioirqdisable(uint32_t pinset);
+void gpioclearint(uint32_t pinset);
 
 #endif /* __ASSEMBLY__ */
 
