@@ -24,6 +24,7 @@ static int sys_set_rate(struct clk *c, unsigned long rate)
 	
 	if (rate > 16000000)
 	{
+		uint32_t new_div;
 		if (c->rate <= 16000000)
 		{
 			//printk("------- enable PLL\n");
@@ -37,7 +38,7 @@ static int sys_set_rate(struct clk *c, unsigned long rate)
 			//printk("------- enable PLL done\n");
 		}
 		
-		uint32_t new_div = (480000000 / rate - 1);
+		new_div = (480000000 / rate - 1);
 
 		regval = SYSCON_RSCLKCFG_PSYSDIV_SET(new_div) | SYSCON_RSCLKCFG_USEPLL | SYSCON_RSCLKCFG_MEMTIMU |
 						SYSCON_RSCLKCFG_PLLSRC_MOSC | SYSCON_RSCLKCFG_NEWFREQ;
@@ -62,6 +63,7 @@ static int sys_set_rate(struct clk *c, unsigned long rate)
 	
 	c->rate = rate;
 	//update_event_timer(rate);
+	return 0;
 }
 
 static struct clk sys_clk = {

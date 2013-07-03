@@ -23,7 +23,6 @@ int adc_convert_ex(uint32_t* values, int *channels, int count)
 	uint32_t actss;
 	uint32_t ssmux = 0;
 	uint32_t ssctl = ADC_SSCTL_END;
-	int ret = 0;
 	int i;
 
 	if (channels == NULL || values == NULL || count < 1 || count > 8)
@@ -90,7 +89,6 @@ EXPORT_SYMBOL_GPL(adc_convert);
 
 static int read_proc(char *buf, char **start, off_t offset, int count, int *eof, void *data)
 {
-	uint32_t temperature, caps_voltage;
 	int res;
 	int channels[] = {14, 15, STLR_ADC_TEMPERATURE};
 	uint32_t values[ARRAY_SIZE(channels)];

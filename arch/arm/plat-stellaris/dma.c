@@ -163,7 +163,6 @@ void dma_setup_channel(unsigned int channel, unsigned int config)
 void __sram dma_setup_xfer(unsigned int channel, void *dst, void *src, size_t size, unsigned int flags)
 {
 	int ch = CHANNEL_NUMBER(channel);
-	int chmask = 1 << ch;
 	int transfer_unit_size_code = 0;
 	size_t length;
 	struct stellaris_dma_channel *dma_channel = dma_channels + ch;

@@ -59,6 +59,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	if (!clk)
 		return -EINVAL;
 	clk->parent = parent;
+	return 0;
 }
 
 void __init stellaris_clock_init(void)
