@@ -248,6 +248,13 @@ config CRYPTO_FPU
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_MANAGER
 
+config CRYPTO_CRYPTODEV
+	tristate "Cryptodev (/dev/crypto) interface"
+	depends on CRYPTO
+	help
+	  Device /dev/crypto gives userspace programs access to 
+	  kernel crypto algorithms.
+
 comment "Hash modes"
 
 config CRYPTO_HMAC
