@@ -43,7 +43,7 @@
 #include <linux/pagemap.h>
 #include <linux/poll.h>
 #include <linux/uaccess.h>
-#include <crypto/cryptodev.h>
+#include <linux/cryptodev.h>
 #include <linux/scatterlist.h>
 #include "cryptodev_int.h"
 #include "zc.h"
@@ -1074,7 +1074,7 @@ static const struct file_operations cryptodev_fops = {
 };
 
 static struct miscdevice cryptodev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.minor = 240,
 	.name = "crypto",
 	.fops = &cryptodev_fops,
 	.mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH,

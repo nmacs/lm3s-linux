@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/scatterlist.h>
-#include <crypto/cryptodev.h>
+#include <linux/cryptodev.h>
 #include <crypto/aead.h>
 
 #define PFX "cryptodev: "
@@ -104,7 +104,7 @@ int kcaop_to_user(struct kernel_crypt_auth_op *kcaop,
 int crypto_auth_run(struct fcrypt *fcr, struct kernel_crypt_auth_op *kcaop);
 int crypto_run(struct fcrypt *fcr, struct kernel_crypt_op *kcop);
 
-#include <cryptlib.h>
+#include "cryptlib.h"
 
 /* other internal structs */
 struct csession {
