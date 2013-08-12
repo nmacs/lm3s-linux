@@ -98,7 +98,7 @@ static struct telit_platform_data telit_chip = {
 static struct spi_board_info spi_devices[] = {
   {
     .modalias      = "m25p32",
-    .max_speed_hz  = 5 * 1000000,
+    .max_speed_hz  = 10 * 1000000,
     .bus_num       = 0,
     .chip_select   = 0,
     .platform_data = &flash_chip,
