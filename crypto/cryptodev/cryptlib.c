@@ -32,7 +32,7 @@
 #include <linux/uaccess.h>
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
-#include <linux/cryptodev.h>
+#include <crypto/cryptodev.h>
 #include <crypto/aead.h>
 #include "cryptodev_int.h"
 

@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/scatterlist.h>
-#include <linux/cryptodev.h>
+#include <crypto/cryptodev.h>
 #include <crypto/aead.h>
 
 #define PFX "cryptodev: "
