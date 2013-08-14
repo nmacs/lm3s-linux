@@ -32,7 +32,7 @@
 # define WATCHDOG_CLOCK_RATE 16000000
 #endif
 
-#define WDT_DEFAULT_TIME	30	/* seconds */
+#define WDT_DEFAULT_TIME	60	/* seconds */
 #define WDT_MAX_TIME		(0xFFFFFFFF / WATCHDOG_CLOCK_RATE)	/* seconds */
 
 static int wdt_time = WDT_DEFAULT_TIME;
