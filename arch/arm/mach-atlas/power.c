@@ -83,14 +83,19 @@ static int read_proc_outage(char *buf, char **start, off_t offset, int count, in
 
 static int write_proc_outage(struct file *file, const char __user *buf, unsigned long count, void *data)
 {
-	char proc_data[MAX_PROC_SIZE];
-	unsigned pid; 
-	
+	char proc_data[MAX_PROC_SIZE+1];
+	unsigned pid = 0;
+
 	if (count > MAX_PROC_SIZE)
 		count = MAX_PROC_SIZE;
 
 	if (copy_from_user(proc_data, buf, count))
 		return -EFAULT;
+
+	if (count < MAX_PROC_SIZE)
+		proc_data[count] = 0;
+	else
+		proc_data[MAX_PROC_SIZE] = 0;
 
 	if (sscanf(proc_data, "%u", &pid) == 1) {
 		unsigned long flags;
