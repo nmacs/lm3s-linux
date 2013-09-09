@@ -820,10 +820,8 @@ void update_wall_time(void)
 		shift--;
 	}
 
-#ifndef CONFIG_DISABLE_TIME_ADJUST
 	/* correct the clock when NTP error is too big */
 	timekeeping_adjust(offset);
-#endif
 
 	/*
 	 * Since in the loop above, we accumulate any amount of time
