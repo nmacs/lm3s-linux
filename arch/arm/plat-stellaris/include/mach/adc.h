@@ -42,12 +42,12 @@
 
 static inline int adc_to_mV(uint32_t value)
 {
-	return (int)(3300U * value / 4096U);
+	return (int)((3300U * value) / 4096U);
 }
 
 static inline int adc_to_mC(uint32_t value)
 {
-	return 147500 - (int)((75U*3300U*value)/4096U);
+	return 550000 - (int)(value * (1000U / 4U));
 }
 
 int adc_convert(uint32_t *value, int channel);
